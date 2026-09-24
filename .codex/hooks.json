@@ -1,0 +1,7 @@
+{
+  "description": "Capture user prompts and final replies for the 8x assignment.",
+  "hooks": {
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python capture_turn.py", "commandWindows": "python capture_turn.py", "timeout": 10}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "python capture_turn.py", "commandWindows": "python capture_turn.py", "timeout": 10}]}]
+  }
+}
