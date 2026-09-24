@@ -6,6 +6,7 @@ A meeting workspace preview built with Next.js App Router, React, TypeScript, an
 
 - Install dependencies: `npm install`
 - Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Keep `SUPABASE_SECRET_KEY` server-side; this auth flow does not use it.
+- Apply `supabase/migrations/20260924000000_create_profiles.sql` to your Supabase project before signing in. It creates each user profile on the first authenticated workspace request, using the Auth signup time for the 14-day trial.
 - In Supabase Auth, enable Email, Google, and Anonymous Sign-Ins. Configure Google credentials in Supabase and add `http://localhost:3000/auth/callback` to the allowed redirect URLs. Set `NEXT_PUBLIC_SITE_URL` to the deployed origin in production and allow its `/auth/callback` URL as well.
 - Start the app: `npm run dev`
 - Open http://localhost:3000
