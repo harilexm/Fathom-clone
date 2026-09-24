@@ -91,14 +91,23 @@ export function formatMeetingTime(dateStr: string): string {
 }
 
 export function formatMeetingDuration(seconds?: number): string {
-  if (!seconds || seconds <= 0) return "—";
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return "—";
   const wholeSeconds = Math.round(seconds);
+  if (wholeSeconds < 60) {
+    return `${wholeSeconds}s`;
+  }
   const hours = Math.floor(wholeSeconds / 3600);
   const minutes = Math.floor((wholeSeconds % 3600) / 60);
   const remainingSeconds = wholeSeconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
-    : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} hr ${minutes} min` : `${hours} hr`;
+  }
+
+  if (minutes < 5 && remainingSeconds > 0) {
+    return `${minutes} min ${remainingSeconds}s`;
+  }
+  return `${minutes} min`;
 }
 
 export function getLatestRecording(dbMeeting: DbMeetingRecord) {
@@ -122,11 +131,18 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   const dateFormatted = formatMeetingDate(dateStr);
   const timeFormatted = formatMeetingTime(dateStr);
 
-  const durationSec =
+  let durationSec =
     latestRecording?.duration_seconds ||
     latestRecording?.duration ||
     dbMeeting.duration_seconds ||
-    dbMeeting.duration;
+    dbMeeting.duration ||
+    0;
+
+  if (!durationSec && Array.isArray(dbMeeting.transcript_segments) && dbMeeting.transcript_segments.length > 0) {
+    const maxSegment = Math.max(...dbMeeting.transcript_segments.map((s) => s.start_time || 0));
+    if (maxSegment > 0) durationSec = Math.round(maxSegment);
+  }
+
   const durationText = formatMeetingDuration(durationSec);
 
   // Status mapping

@@ -8,6 +8,7 @@ import {
   Search, Share2, Sparkles, WandSparkles
 } from "lucide-react";
 import type { Meeting, TranscriptTurn } from "@/lib/sample-data";
+import { formatMeetingDuration } from "@/lib/meetings";
 import { ParticipantAvatars } from "@/components/participant-avatars";
 import { Button, Card, Dropdown, Modal, Tabs } from "@/components/ui";
 
@@ -60,17 +61,55 @@ export function RecordingPlaceholder({ duration, isDemo }: { duration: string; i
   );
 }
 
-function RecordingPlayer({ playbackUrl, mimeType }: { playbackUrl: string; mimeType?: string }) {
+function RecordingPlayer({
+  playbackUrl,
+  mimeType,
+  onDurationDetected,
+}: {
+  playbackUrl: string;
+  mimeType?: string;
+  onDurationDetected?: (durationSec: number) => void;
+}) {
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    const el = e.currentTarget;
+    const dur = el.duration;
+    if (Number.isFinite(dur) && dur > 0) {
+      onDurationDetected?.(Math.max(1, Math.round(dur)));
+    } else if (dur === Infinity) {
+      el.currentTime = 1e101;
+      const onTimeUpdate = () => {
+        el.removeEventListener("timeupdate", onTimeUpdate);
+        const resolvedDur = el.duration === Infinity ? el.currentTime : el.duration;
+        if (Number.isFinite(resolvedDur) && resolvedDur > 0) {
+          onDurationDetected?.(Math.max(1, Math.round(resolvedDur)));
+        }
+      };
+      el.addEventListener("timeupdate", onTimeUpdate);
+    }
+  };
+
   return (
     <Card className="overflow-hidden bg-[#0d1623]">
       {mimeType?.startsWith("audio/") ? (
         <div className="flex min-h-[180px] items-center px-4">
-          <audio aria-label="Meeting recording" controls preload="metadata" className="w-full">
+          <audio
+            aria-label="Meeting recording"
+            controls
+            preload="metadata"
+            className="w-full"
+            onLoadedMetadata={handleLoadedMetadata}
+          >
             <source src={playbackUrl} type={mimeType} />
           </audio>
         </div>
       ) : (
-        <video aria-label="Meeting recording" controls preload="metadata" className="aspect-video max-h-[480px] w-full bg-black">
+        <video
+          aria-label="Meeting recording"
+          controls
+          preload="metadata"
+          className="aspect-video max-h-[480px] w-full bg-black"
+          onLoadedMetadata={handleLoadedMetadata}
+        >
           <source src={playbackUrl} type={mimeType || "video/mp4"} />
         </video>
       )}
@@ -462,11 +501,26 @@ export function SharePreviewModal({
 export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { meeting: Meeting; playbackUrl?: string; recordingMimeType?: string }) {
   const [tab, setTab] = useState("summary");
   const [shareOpen, setShareOpen] = useState(false);
+  const [meetingDuration, setMeetingDuration] = useState(meeting.duration);
   const [doneIds, setDoneIds] = useState<string[]>(meeting.actions.filter((item) => item.done).map((item) => item.id));
 
   function toggleDone(id: string) {
     setDoneIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
+
+  const handleDurationDetected = (durSec: number) => {
+    if (durSec > 0 && (meetingDuration === "—" || !meetingDuration)) {
+      setMeetingDuration(formatMeetingDuration(durSec));
+    }
+    // Asynchronously notify backend to persist duration in database if real meeting
+    if (!meeting.isDemo && meeting.id && durSec > 0) {
+      fetch("/api/recordings/duration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meetingId: meeting.id, durationSeconds: durSec }),
+      }).catch(() => {});
+    }
+  };
 
   return (
     <div className="fade-in min-w-0">
@@ -480,7 +534,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
             <span>·</span>
             <span suppressHydrationWarning>{meeting.time}</span>
             <span>·</span>
-            <span>{meeting.duration}</span>
+            <span>{meetingDuration}</span>
           </div>
           <h1 className="max-w-4xl break-words text-[21px] font-semibold leading-tight tracking-tight sm:text-[24px]">{meeting.title}</h1>
           {!meeting.isDemo && (
@@ -527,9 +581,9 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
       </div>
       <div className="min-w-0 space-y-3">
           {playbackUrl ? (
-            <RecordingPlayer playbackUrl={playbackUrl} mimeType={recordingMimeType} />
+            <RecordingPlayer playbackUrl={playbackUrl} mimeType={recordingMimeType} onDurationDetected={handleDurationDetected} />
           ) : (
-            <RecordingPlaceholder duration={meeting.duration} isDemo={meeting.isDemo} />
+            <RecordingPlaceholder duration={meetingDuration} isDemo={meeting.isDemo} />
           )}
           <Card className="min-w-0 overflow-hidden">
             <div className="border-b border-[#253345] px-4 pt-3 sm:px-5">

@@ -18,24 +18,41 @@ type UploadState =
 
 function readMediaDurationSeconds(file: File): Promise<number | undefined> {
   return new Promise((resolve) => {
-    const media = document.createElement(file.type.startsWith("audio/") ? "audio" : "video");
+    const isAudio = file.type.startsWith("audio/") || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
+    const media = document.createElement(isAudio ? "audio" : "video");
     const objectUrl = URL.createObjectURL(file);
     let settled = false;
-    const timeout = window.setTimeout(() => finish(), 10000);
+    const timeout = window.setTimeout(() => finish(), 8000);
+
     function finish(duration?: number) {
       if (settled) return;
       settled = true;
       window.clearTimeout(timeout);
       media.onloadedmetadata = null;
+      media.ondurationchange = null;
+      media.ontimeupdate = null;
       media.onerror = null;
       media.removeAttribute("src");
       media.load();
       URL.revokeObjectURL(objectUrl);
       resolve(duration);
     }
+
     media.onloadedmetadata = () => {
       const duration = media.duration;
-      finish(Number.isFinite(duration) && duration > 0 ? Math.max(1, Math.round(duration)) : undefined);
+      if (Number.isFinite(duration) && duration > 0) {
+        finish(Math.max(1, Math.round(duration)));
+        return;
+      }
+      // Fragmented MP4 and WebM recordings often report duration as Infinity in Chromium
+      if (duration === Infinity) {
+        media.currentTime = 1e101;
+        media.ontimeupdate = () => {
+          media.ontimeupdate = null;
+          const dur = media.duration === Infinity ? media.currentTime : media.duration;
+          finish(Number.isFinite(dur) && dur > 0 ? Math.max(1, Math.round(dur)) : undefined);
+        };
+      }
     };
     media.onerror = () => finish();
     media.preload = "metadata";
@@ -111,6 +128,8 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
     event.target.value = "";
 
     setUploadState({ status: "uploading", progress: 0, filename: file.name });
+    // Probe media duration in parallel with the upload network requests
+    const durationPromise = readMediaDurationSeconds(file).catch(() => undefined);
 
     try {
       const effectiveContentType = file.type || "video/mp4";
@@ -179,7 +198,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
       });
 
       // 3. Persist meeting and recording records for authenticated user only after successful upload
-      const durationSeconds = await readMediaDurationSeconds(file);
+      const durationSeconds = await durationPromise;
       const completeRes = await fetch("/api/recordings/complete", {
         method: "POST",
         headers: {

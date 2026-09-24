@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getR2Client, getR2Config } from "@/lib/r2";
+import { probeR2MediaDuration } from "@/lib/media-duration";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -131,10 +132,23 @@ export async function POST(request: NextRequest) {
           : headResult.ContentLength || 0;
 
     const requestedDuration = body.durationSeconds ?? body.duration_seconds;
-    const durationSeconds = typeof requestedDuration === "number" &&
+    let durationSeconds = typeof requestedDuration === "number" &&
       Number.isFinite(requestedDuration) && requestedDuration > 0 && requestedDuration < 2147483647
       ? Math.max(1, Math.round(requestedDuration))
       : 0;
+
+    // Server-side fallback: If client could not determine duration (e.g. streaming fMP4/WebM),
+    // probe Cloudflare R2 storage directly using minimal byte range requests
+    if (durationSeconds <= 0) {
+      try {
+        const probed = await probeR2MediaDuration(objectKey, fileSize);
+        if (typeof probed === "number" && probed > 0) {
+          durationSeconds = probed;
+        }
+      } catch (probeErr) {
+        console.warn("Server-side duration probe skipped/failed:", probeErr);
+      }
+    }
 
     // Idempotency check: If a recording for this exact objectKey already exists, return it idempotently
     const { data: existingRecording } = await supabase
@@ -144,6 +158,18 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingRecording) {
+      // If duration was probed or discovered now but recording/meeting had 0:
+      if (durationSeconds > 0 && (!existingRecording.duration || existingRecording.duration <= 0)) {
+        await supabase
+          .from("recordings")
+          .update({ duration: durationSeconds, duration_seconds: durationSeconds })
+          .eq("id", existingRecording.id);
+        await supabase
+          .from("meetings")
+          .update({ duration: durationSeconds, duration_seconds: durationSeconds })
+          .eq("id", existingRecording.meeting_id);
+      }
+
       const { data: currentMeeting } = await supabase
         .from("meetings")
         .select("*")
@@ -153,8 +179,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: true,
-          meeting: currentMeeting || { id: existingRecording.meeting_id, user_id: user.id, title, status: "pending" },
-          recording: existingRecording,
+          meeting: currentMeeting || { id: existingRecording.meeting_id, user_id: user.id, title, status: "pending", duration: durationSeconds, duration_seconds: durationSeconds },
+          recording: { ...existingRecording, duration: durationSeconds || existingRecording.duration, duration_seconds: durationSeconds || existingRecording.duration_seconds },
         },
         { status: 200 },
       );
@@ -176,7 +202,17 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
-      meetingRecord = existingMeeting;
+      if (durationSeconds > 0) {
+        const { data: updatedMeeting } = await supabase
+          .from("meetings")
+          .update({ duration: durationSeconds, duration_seconds: durationSeconds })
+          .eq("id", existingMeeting.id)
+          .select()
+          .single();
+        meetingRecord = updatedMeeting || existingMeeting;
+      } else {
+        meetingRecord = existingMeeting;
+      }
     } else {
       // Create new meeting record using upsert on id to avoid race collisions
       const { data: newMeeting, error: meetErr } = await supabase
@@ -188,6 +224,8 @@ export async function POST(request: NextRequest) {
             title,
             source: "upload",
             status: "pending",
+            duration: durationSeconds,
+            duration_seconds: durationSeconds,
           },
           { onConflict: "id" }
         )
