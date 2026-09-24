@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, AtSign, ChartNoAxesColumnIncreasing, ChevronDown, ChevronLeft, ChevronRight, FileText, Lightbulb, Paperclip, Play, Send, Sparkles, UsersRound } from "lucide-react";
+import { AtSign, ChartNoAxesColumnIncreasing, ChevronDown, ChevronLeft, ChevronRight, FileText, Lightbulb, Paperclip, Send, Sparkles, UsersRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { findMeeting } from "@/lib/sample-data";
 
