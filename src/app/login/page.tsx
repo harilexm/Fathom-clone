@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="flex min-h-screen flex-col bg-[#0a0e17] text-[#e8eef8]">
       <header className="flex w-full items-center justify-center pt-12">
-        <Link href="/" className="flex shrink-0 items-center gap-3 text-[22px] font-bold tracking-[.2em] text-white" aria-label="Fathom home">
+        <Link href="/" className="flex shrink-0 items-center gap-3 text-[18px] font-bold tracking-[.2em] text-white transition-opacity hover:opacity-80" aria-label="Fathom home">
           <span aria-hidden="true" className="flex h-8 items-center gap-[3px]">
             <span className="h-[16px] w-[4px] rounded-full bg-[#4b83ff]" />
             <span className="h-[28px] w-[4px] rounded-full bg-[#7badff]" />
@@ -28,13 +28,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
         {/* Left Side: Quote */}
         <div className="hidden max-w-[560px] flex-col lg:flex">
-          <div className="relative">
+          <div className="relative w-fit">
             <span className="absolute -left-12 -top-12 text-[120px] font-black leading-none text-[#1e2a3a]/40">“</span>
-            <h2 className="relative z-10 whitespace-nowrap text-[32px] font-medium leading-[1.3] tracking-tight text-[#e8eef8]">
-              Focus on the conversation, not the notes.<br/>
-              <span className="text-[#ffab40]">Fathom remembers every detail.</span>
+            <h2 className="relative z-10 whitespace-nowrap font-medium leading-[1.3] tracking-tight text-[#e8eef8]">
+              <span className="text-[24px]">Focus on the conversation, not the notes.</span><br/>
+              <span className="text-[32px] text-[#ffab40]">Fathom remembers every detail.</span>
             </h2>
-            <span className="absolute -bottom-24 right-16 text-[120px] font-black leading-none text-[#1e2a3a]/40">”</span>
+            <span className="absolute -bottom-24 -right-8 text-[120px] font-black leading-none text-[#1e2a3a]/40">”</span>
           </div>
           <div className="mt-10 text-[14px] text-[#8e9bac]">
             <p className="font-semibold text-[#c0cce0]">Umer Abdullah</p>

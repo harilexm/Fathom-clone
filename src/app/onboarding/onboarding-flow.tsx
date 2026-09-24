@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ArrowRight, Check, ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { finishOnboarding, saveOnboardingStep, type FinishState, type SaveState } from "./actions";
 import type { CalendarStatus, UserProfile } from "@/lib/onboarding-types";
 
@@ -34,10 +35,15 @@ function ChoiceCard({ name, value, selected, onSelect, title, description }: Cho
   </label>;
 }
 
-function SubmitButton({ finish = false, disabled = false, label }: { finish?: boolean; disabled?: boolean; label?: string }) {
+function SubmitButton({ finish = false, disabled = false, label, variant = "primary" }: { finish?: boolean; disabled?: boolean; label?: string; variant?: "primary" | "secondary" }) {
   const { pending } = useFormStatus();
-  return <button type="submit" disabled={pending || disabled} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#4b78ff] px-5 text-sm font-semibold text-white hover:bg-[#3b62db] disabled:cursor-not-allowed disabled:opacity-60">
-    {pending ? "Saving..." : label ?? (finish ? "Finish setup" : "Continue")}{!pending && <ArrowRight size={16} aria-hidden="true" />}
+  
+  const baseStyle = "inline-flex h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  const primaryStyle = "bg-[#4b83ff] text-white hover:bg-[#3b62db]";
+  const secondaryStyle = "bg-transparent text-[#8e9bac] hover:bg-[#1a2433] hover:text-[#c0cce0]";
+
+  return <button type="submit" disabled={pending || disabled} className={`${baseStyle} ${variant === "primary" ? primaryStyle : secondaryStyle}`}>
+    {pending ? "Saving..." : label ?? (finish ? "Finish setup" : "Continue")}{!pending && variant === "primary" && <ArrowRight size={16} aria-hidden="true" />}
   </button>;
 }
 
@@ -59,26 +65,34 @@ export function OnboardingFlow({ profile, calendarConfigured, calendarFeedback }
 
   const values = ["skip", usage, meeting, sharing, jobFunction];
   const canContinue = step === 4 || Boolean(values[step]);
-  return <main className="min-h-screen bg-canvas px-5 py-6 text-[#e8eef8] sm:px-8">
+  return <main className="min-h-screen bg-[#0a0e17] px-5 py-6 text-[#e8eef8] sm:px-8">
     <div className="mx-auto max-w-2xl">
-      <header className="flex items-center justify-between gap-4">
-        <span className="text-[17px] font-black tracking-[.13em] text-ink">FATHOM<span className="text-brand">.</span></span>
-        <span className="text-xs font-medium text-[#8e9bac]">Step {step + 1} of {steps.length}</span>
+      <header className="flex items-center justify-center pt-8">
+        <Link href="/" className="flex shrink-0 items-center gap-3 text-[18px] font-bold tracking-[.2em] text-white transition-opacity hover:opacity-80" aria-label="Fathom home">
+          <span aria-hidden="true" className="flex h-8 items-center gap-[3px]">
+            <span className="h-[16px] w-[4px] rounded-full bg-[#4b83ff]" />
+            <span className="h-[28px] w-[4px] rounded-full bg-[#7badff]" />
+            <span className="h-[20px] w-[4px] rounded-full bg-[#4b83ff]" />
+            <span className="h-[14px] w-[4px] rounded-full bg-[#4b83ff]" />
+          </span>
+          <span>FATHOM</span>
+        </Link>
       </header>
-      <div className="mt-12 sm:mt-16">
-        <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#7badff]">Set up your workspace</p>
-        <h1 className="mt-3 text-2xl font-semibold text-[#f3f6fc] sm:text-3xl">{steps[step].title}</h1>
-        <p className="mt-2 text-sm text-[#8e9bac]">{steps[step].description}</p>
+      <div className="mt-16 sm:mt-24">
+        <div className="flex items-baseline justify-between">
+          <h1 className="text-2xl font-semibold text-[#f3f6fc] sm:text-3xl">{steps[step].title}</h1>
+          <span className="text-sm font-medium text-[#8e9bac]">Step {step + 1} of {steps.length}</span>
+        </div>
         <div role="progressbar" aria-label="Onboarding progress" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={step + 1} className="mt-7 flex gap-2">
-          {steps.map(({ title }, index) => <span key={title} title={title} className={"h-1.5 flex-1 rounded-full " + (index <= step ? "bg-[#4b83ff]" : "bg-[#253345]")} />)}
+          {steps.map(({ title }, index) => <span key={title} title={title} className={"h-1.5 flex-1 rounded-full " + (index <= step ? "bg-[#4b83ff]" : "bg-[#1e2a3a]")} />)}
         </div>
       </div>
       {calendarFeedback && calendarMessages[calendarFeedback] && <p role="status" className="mt-5 text-sm text-[#b7cfff]">{calendarMessages[calendarFeedback]}</p>}
-      <div className="surface mt-7 min-h-[290px] rounded-2xl p-5 sm:p-7">
+      <div className="mt-7 flex min-h-[220px] flex-col justify-center rounded-xl border border-[#253345] bg-[#101824] p-5 shadow-lg sm:p-7">
         {step === 0 && <section aria-label="Connect Calendar">
           {calendarStatus === "connected" && <p className="mb-4 text-sm text-[#b7cfff]">Google Calendar is connected with read-only access.</p>}
           {calendarStatus === "denied" && !calendarFeedback && <p className="mb-4 text-sm text-[#b7cfff]">Calendar access was declined. You can continue without a connection.</p>}
-          {calendarConfigured && <a href="/onboarding/calendar/start" className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-[#253345] bg-[#0d1420] px-4 py-3 text-sm font-semibold text-[#e8eef8] hover:border-[#4b83ff]">{calendarStatus === "connected" ? "Reconnect Google Calendar" : "Connect Google Calendar"}<ArrowRight size={16} aria-hidden="true" /></a>}
+          {calendarConfigured && <a href="/onboarding/calendar/start" className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-transparent bg-[#15233b] px-4 py-3 text-sm font-semibold text-[#e8eef8] transition-colors hover:bg-[#1a2b4a]">{calendarStatus === "connected" ? "Reconnect Google Calendar" : "Connect Google Calendar"}<ArrowRight size={16} aria-hidden="true" /></a>}
           {!calendarConfigured && <p className="text-sm text-[#8e9bac]">Google Calendar connection is currently unavailable. You can continue setup.</p>}
           <p className="mt-4 text-xs leading-5 text-[#8e9bac]">Calendar access is read-only. You can skip this step and continue setup.</p>
         </section>}
@@ -105,13 +119,12 @@ export function OnboardingFlow({ profile, calendarConfigured, calendarFeedback }
       <div className="mt-6 flex items-center justify-between gap-3">
         <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0} className="inline-flex h-11 items-center gap-2 px-2 text-sm font-medium text-[#c0cce0] hover:text-white disabled:invisible"><ChevronLeft size={16} aria-hidden="true" /> Back</button>
         {step === 0 && calendarStatus !== "pending" && <button type="button" onClick={() => setStep(1)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#4b78ff] px-5 text-sm font-semibold text-white hover:bg-[#3b62db]">Continue <ArrowRight size={16} aria-hidden="true" /></button>}
-        {step === 0 && calendarStatus === "pending" && <form action={saveAction}><input type="hidden" name="step" value="calendar" /><input type="hidden" name="value" value="skip" /><SubmitButton label="Skip for now" /></form>}
+        {step === 0 && calendarStatus === "pending" && <form action={saveAction}><input type="hidden" name="step" value="calendar" /><input type="hidden" name="value" value="skip" /><SubmitButton label="Skip for now" variant="secondary" /></form>}
         {step > 0 && step < 4 && <form action={saveAction} key={step}><input type="hidden" name="step" value={stepNames[step]} /><input type="hidden" name="value" value={values[step]} /><SubmitButton disabled={!canContinue} /></form>}
         {step === 4 && <form action={finishAction}><input type="hidden" name="job_function" value={jobFunction} /><SubmitButton finish /></form>}
       </div>
       {saveState.error && <p role="alert" className="mt-3 text-sm text-[#ff6b7e]">{saveState.error}</p>}
       {finishState.error && <p role="alert" className="mt-3 text-sm text-[#ff6b7e]">{finishState.error}</p>}
-      <p className="mt-7 text-xs leading-5 text-[#718399]">Each completed step is saved to your account. You can return and change your choices before finishing.</p>
     </div>
   </main>;
 }
