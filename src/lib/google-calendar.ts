@@ -4,7 +4,8 @@ export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly
 export const CALENDAR_STATE_COOKIE = "calendar_oauth_state";
 const STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
-type OAuthAttempt = { userId: string; state: string; verifier: string; createdAt: number };
+export type CalendarReturnTo = "onboarding" | "settings";
+type OAuthAttempt = { userId: string; state: string; verifier: string; returnTo: CalendarReturnTo; createdAt: number };
 type GoogleConfig = { clientId: string; clientSecret: string; redirectUri: string; key: Buffer };
 
 export function calendarOAuthConfigured() {
@@ -46,11 +47,11 @@ function unseal(value: string, purpose: string) {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
 }
 
-export function createCalendarOAuthAttempt(userId: string) {
+export function createCalendarOAuthAttempt(userId: string, returnTo: CalendarReturnTo = "onboarding") {
   const state = randomBytes(32).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
-  const cookieValue = seal(JSON.stringify({ userId, state, verifier, createdAt: Date.now() } satisfies OAuthAttempt), "calendar-oauth-state");
+  const cookieValue = seal(JSON.stringify({ userId, state, verifier, returnTo, createdAt: Date.now() } satisfies OAuthAttempt), "calendar-oauth-state");
   const { clientId, redirectUri } = config();
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
@@ -79,7 +80,7 @@ export function verifyCalendarOAuthAttempt(cookieValue: string, returnedState: s
     typeof attempt.verifier !== "string" ||
     attempt.verifier.length < 43
   ) throw new Error("Invalid Calendar state");
-  return attempt.verifier;
+  return { verifier: attempt.verifier, returnTo: attempt.returnTo === "settings" ? "settings" as const : "onboarding" as const };
 }
 
 export function encryptCalendarRefreshToken(token: string) {
@@ -104,5 +105,38 @@ export async function exchangeCalendarCode(code: string, verifier: string, fetch
     cache: "no-store",
   });
   if (!verification.ok) throw new Error("Google Calendar access could not be verified");
-  return { encryptedRefreshToken: encryptCalendarRefreshToken(tokens.refresh_token), scope: tokens.scope };
+  let accountEmail: string | null = null;
+  try {
+    accountEmail = await readPrimaryCalendarEmail(tokens.access_token, fetcher);
+  } catch {
+    // The connection still works when Google cannot return a primary Calendar email.
+  }
+  return { encryptedRefreshToken: encryptCalendarRefreshToken(tokens.refresh_token), scope: tokens.scope, accountEmail };
+}
+
+async function readPrimaryCalendarEmail(accessToken: string, fetcher: typeof fetch) {
+  const response = await fetcher("https://www.googleapis.com/calendar/v3/users/me/calendarList/primary", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Google Calendar access could not be verified");
+  const calendar = await response.json() as { primary?: boolean; id?: string };
+  if (calendar.primary !== true) throw new Error("Primary Google Calendar was not verified");
+  const id = calendar.id?.trim();
+  return id && id.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id) ? id : null;
+}
+
+export async function readConnectedCalendarEmail(encryptedRefreshToken: string, fetcher: typeof fetch = fetch) {
+  const { clientId, clientSecret } = config();
+  const refreshToken = unseal(encryptedRefreshToken, "calendar-refresh-token");
+  const response = await fetcher("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Google Calendar credential could not be refreshed");
+  const tokens = await response.json() as { access_token?: string };
+  if (!tokens.access_token) throw new Error("Google Calendar credential could not be refreshed");
+  return readPrimaryCalendarEmail(tokens.access_token, fetcher);
 }
