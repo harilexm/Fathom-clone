@@ -395,7 +395,7 @@ async function run() {
       `HTTP ${directUnauthRes.status} (Access Denied as expected for private bucket)`
     );
 
-    // TEST 14: Auto-create meeting fallback when meetingId omitted
+    // TEST 14: Dynamic key generation without eager meeting creation
     const autoMeetingRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: {
@@ -415,13 +415,149 @@ async function run() {
       autoMeetingData.objectKey.endsWith('.webm');
     record(
       'Endpoint Flexibility',
-      'Omitted meetingId auto-creates pending meeting record and returns scoped key',
+      'Omitted meetingId returns scoped key without eagerly creating meeting',
       autoSuccess,
       `Object key: ${autoMeetingData.objectKey}`
     );
     if (autoMeetingData.objectKey) {
       createdR2Keys.push(autoMeetingData.objectKey);
     }
+
+    // TEST 15: Failed upload protection - no meeting created if upload never finishes
+    const uncommittedMeetingId = autoMeetingData.objectKey.split('/')[2];
+    const { data: phantomMeeting } = await adminClient
+      .from('meetings')
+      .select('id')
+      .eq('id', uncommittedMeetingId)
+      .maybeSingle();
+    record(
+      'Failed Upload Protection',
+      'No completed meeting record exists before successful R2 upload',
+      phantomMeeting === null,
+      'Confirmed 0 database records for uncommitted upload'
+    );
+
+    // TEST 16: Complete endpoint rejects unuploaded/missing R2 files
+    const fakeKey = `recordings/${userAId}/${crypto.randomUUID()}/${Date.now()}-fake.mp4`;
+    const fakeCompleteRes = await fetch(`${baseUrl}/api/recordings/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({
+        objectKey: fakeKey,
+        filename: 'never-uploaded.mp4',
+        mimeType: 'video/mp4',
+        size: 5000,
+      }),
+    });
+    record(
+      'Failed Upload Protection',
+      'Recording completion rejected if file does not exist in R2',
+      fakeCompleteRes.status === 404,
+      `HTTP ${fakeCompleteRes.status} (Storage verification failed as expected)`
+    );
+
+    // TEST 17: Successful upload flow creates meeting and recording records
+    const uploadPayloadBytes = Buffer.from('TEST_AUDIO_CONTAINER_PAYLOAD_FOR_RECORDING_COMPLETION');
+    const fullFlowRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({
+        filename: 'Quarterly_Roadmap_Review.mp4',
+        contentType: 'video/mp4',
+      }),
+    });
+    const fullFlowData = await fullFlowRes.json();
+    const fullFlowKey = fullFlowData.objectKey;
+    createdR2Keys.push(fullFlowKey);
+
+    // 17b. Direct upload to R2
+    const uploadPutRes = await fetch(fullFlowData.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'video/mp4' },
+      body: uploadPayloadBytes,
+    });
+    record(
+      'Complete Flow',
+      'Media successfully uploaded to Cloudflare R2',
+      uploadPutRes.status === 200,
+      `HTTP ${uploadPutRes.status}`
+    );
+
+    // 17c. Complete recording via /api/recordings/complete
+    const completeRes = await fetch(`${baseUrl}/api/recordings/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({
+        objectKey: fullFlowKey,
+        filename: 'Quarterly_Roadmap_Review.mp4',
+        mimeType: 'video/mp4',
+        size: uploadPayloadBytes.length,
+      }),
+    });
+    const completeData = await completeRes.json();
+
+    const createdMeeting = completeData.meeting;
+    const createdRecording = completeData.recording;
+    const meetingSavedOk =
+      completeRes.status === 201 &&
+      !!createdMeeting &&
+      createdMeeting.title === 'Quarterly Roadmap Review' &&
+      createdMeeting.source === 'upload' &&
+      createdMeeting.user_id === userAId;
+
+    const recordingSavedOk =
+      !!createdRecording &&
+      createdRecording.meeting_id === createdMeeting?.id &&
+      createdRecording.r2_object_key === fullFlowKey &&
+      createdRecording.mime_type === 'video/mp4' &&
+      Number(createdRecording.size) === uploadPayloadBytes.length &&
+      createdRecording.status === 'uploaded';
+
+    record(
+      'Database Records Creation',
+      'Meeting record saved with title from filename and source=upload',
+      meetingSavedOk,
+      `Title: "${createdMeeting?.title}", Source: "${createdMeeting?.source}"`
+    );
+
+    record(
+      'Database Records Creation',
+      'Recording record saved with status=uploaded, R2 key, mimeType, and fileSize',
+      recordingSavedOk,
+      `Status: "${createdRecording?.status}", Size: ${createdRecording?.size}, Key: ${createdRecording?.r2_object_key}`
+    );
+
+    if (createdMeeting?.id) {
+      await adminClient.from('meetings').delete().eq('id', createdMeeting.id);
+    }
+
+    // TEST 18: Cross-user completion security
+    const crossCompleteRes = await fetch(`${baseUrl}/api/recordings/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({
+        objectKey: `recordings/${userBId}/${meetingBId}/tampered.mp4`,
+        filename: 'tampered.mp4',
+      }),
+    });
+    record(
+      'Multi-Tenant Security',
+      'User A cannot create records using User B object key',
+      crossCompleteRes.status === 403,
+      `HTTP ${crossCompleteRes.status}`
+    );
   } finally {
     console.log('\n========================================');
     console.log('TEARDOWN & CLEANUP');

@@ -56,9 +56,9 @@ export function MyCalls() {
         throw new Error(data.error || `Upload request failed (${res.status})`);
       }
 
-      const { uploadUrl } = await res.json();
-      if (!uploadUrl) {
-        throw new Error("No upload URL returned by server");
+      const { uploadUrl, objectKey } = await res.json();
+      if (!uploadUrl || !objectKey) {
+        throw new Error("Invalid upload session returned by server");
       }
 
       // 2. Direct upload to Cloudflare R2 bucket with real-time progress
@@ -96,7 +96,26 @@ export function MyCalls() {
         xhr.send(file);
       });
 
-      // 3. Success state
+      // 3. Persist meeting and recording records for authenticated user only after successful upload
+      const completeRes = await fetch("/api/recordings/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          objectKey,
+          filename: file.name,
+          mimeType: file.type || "video/mp4",
+          size: file.size,
+        }),
+      });
+
+      if (!completeRes.ok) {
+        const errData = await completeRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to persist meeting record");
+      }
+
+      // 4. Success state
       setUploadState({ status: "success", filename: file.name });
       setTimeout(() => {
         setUploadState((prev) => (prev.status === "success" ? { status: "idle" } : prev));

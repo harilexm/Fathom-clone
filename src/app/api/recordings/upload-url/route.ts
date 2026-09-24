@@ -127,30 +127,9 @@ export async function POST(request: NextRequest) {
 
       targetMeetingId = meeting.id;
     } else {
-      // Auto-create a pending meeting row owned by authenticated user
-      const defaultTitle = filename
-        ? filename.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim()
-        : "Uploaded Meeting";
-
-      const { data: newMeeting, error: createError } = await supabase
-        .from("meetings")
-        .insert({
-          user_id: user.id,
-          title: defaultTitle || "Uploaded Meeting",
-          source: "upload",
-          status: "pending",
-        })
-        .select("id")
-        .single();
-
-      if (createError || !newMeeting) {
-        return NextResponse.json(
-          { error: "Failed to initialize meeting for upload" },
-          { status: 500 },
-        );
-      }
-
-      targetMeetingId = newMeeting.id;
+      // Do not create a meeting record in database yet.
+      // Meeting and recording records are created only after a successful R2 upload.
+      targetMeetingId = crypto.randomUUID();
     }
 
     // Generate short-lived presigned upload URL (15 minutes expiry)
