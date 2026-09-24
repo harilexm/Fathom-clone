@@ -24,6 +24,11 @@
 - Keep capture evidence intact.
 - Check `git status` before commits.
 - Never commit secrets or generated junk.
+- Commit Workflow:
+  - First, identify which file/files make up a specific feature/topic and stage only those files.
+  - Commit message format:
+    - Title: The heading/topic of that feature.
+    - Description: Proper explanation of that feature/topic so anyone can understand what work was done.
 
 ## Verification
 Before marking a step complete:
