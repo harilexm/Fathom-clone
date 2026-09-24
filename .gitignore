@@ -4,11 +4,13 @@
 node_modules/
 .pnp/
 .pnp.js
+.npm-cache/
 
 # ============================================================
 # Next.js
 # ============================================================
 .next/
+.next-prod/
 out/
 dist/
 build/
@@ -68,3 +70,5 @@ desktop.ini
 *.tmp
 *.temp
 .cache/
+# Windows cache path sometimes emitted by the local sandbox
+%SystemDrive%/
