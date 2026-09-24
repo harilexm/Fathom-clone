@@ -536,6 +536,48 @@ async function run() {
       `Status: "${createdRecording?.status}", Size: ${createdRecording?.size}, Key: ${createdRecording?.r2_object_key}`
     );
 
+    // TEST: Idempotent re-attempt returns HTTP 200 with existing records
+    const retryCompleteRes = await fetch(`${baseUrl}/api/recordings/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({
+        objectKey: fullFlowKey,
+        filename: 'Quarterly_Roadmap_Review.mp4',
+        mimeType: 'video/mp4',
+        size: uploadPayloadBytes.length,
+      }),
+    });
+    const retryCompleteData = await retryCompleteRes.json();
+    record(
+      'Completion Idempotency',
+      'Retrying recording completion with same objectKey returns HTTP 200 without duplicate key error',
+      retryCompleteRes.status === 200 && retryCompleteData.success === true && retryCompleteData.recording?.id === createdRecording?.id,
+      `HTTP ${retryCompleteRes.status}, recording ID: ${retryCompleteData.recording?.id}`
+    );
+
+    // TEST: Invalid meeting ID UUID format returns HTTP 400
+    const invalidUuidKey = `recordings/${userAId}/not-a-valid-uuid/${Date.now()}-test.mp4`;
+    const invalidUuidRes = await fetch(`${baseUrl}/api/recordings/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: JSON.stringify({
+        objectKey: invalidUuidKey,
+        filename: 'test.mp4',
+      }),
+    });
+    record(
+      'Input Validation',
+      'Invalid meetingId UUID in object key returns 400 Bad Request',
+      invalidUuidRes.status === 400,
+      `HTTP ${invalidUuidRes.status}`
+    );
+
     if (createdMeeting?.id) {
       await adminClient.from('meetings').delete().eq('id', createdMeeting.id);
     }

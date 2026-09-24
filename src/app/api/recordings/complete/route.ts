@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getR2Client, getR2Config } from "@/lib/r2";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function getAuthenticatedUser(request: NextRequest) {
   // 1. Try session cookies
   try {
@@ -83,6 +85,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validation: keyMeetingId must be a valid UUID format
+    if (!UUID_REGEX.test(keyMeetingId)) {
+      return NextResponse.json(
+        { error: "Invalid meetingId in object key. Must be a valid UUID." },
+        { status: 400 },
+      );
+    }
+
     // Verify that the object actually exists in Cloudflare R2
     const r2Client = getR2Client();
     const { bucketName } = getR2Config();
@@ -120,6 +130,30 @@ export async function POST(request: NextRequest) {
           ? body.size_bytes
           : headResult.ContentLength || 0;
 
+    // Idempotency check: If a recording for this exact objectKey already exists, return it idempotently
+    const { data: existingRecording } = await supabase
+      .from("recordings")
+      .select("*")
+      .eq("r2_object_key", objectKey)
+      .maybeSingle();
+
+    if (existingRecording) {
+      const { data: currentMeeting } = await supabase
+        .from("meetings")
+        .select("*")
+        .eq("id", existingRecording.meeting_id)
+        .maybeSingle();
+
+      return NextResponse.json(
+        {
+          success: true,
+          meeting: currentMeeting || { id: existingRecording.meeting_id, user_id: user.id, title, status: "pending" },
+          recording: existingRecording,
+        },
+        { status: 200 },
+      );
+    }
+
     // Check if meeting already exists (e.g. if pre-created)
     const { data: existingMeeting } = await supabase
       .from("meetings")
@@ -138,16 +172,19 @@ export async function POST(request: NextRequest) {
       }
       meetingRecord = existingMeeting;
     } else {
-      // Create new meeting record
+      // Create new meeting record using upsert on id to avoid race collisions
       const { data: newMeeting, error: meetErr } = await supabase
         .from("meetings")
-        .insert({
-          id: keyMeetingId,
-          user_id: user.id,
-          title,
-          source: "upload",
-          status: "pending",
-        })
+        .upsert(
+          {
+            id: keyMeetingId,
+            user_id: user.id,
+            title,
+            source: "upload",
+            status: "pending",
+          },
+          { onConflict: "id" }
+        )
         .select()
         .single();
 

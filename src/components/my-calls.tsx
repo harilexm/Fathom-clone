@@ -8,7 +8,7 @@ import { MeetingList } from "@/components/meeting-list";
 import { Button, Dropdown, EmptyState } from "@/components/ui";
 
 type Scope = "all" | "shared";
-type TypeFilter = "all" | "Internal" | "Customer" | "Planning";
+type TypeFilter = "all" | "Upload" | "Internal" | "Customer" | "Planning";
 
 type UploadState =
   | { status: "idle" }
@@ -22,9 +22,25 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
   const [realMeetings, setRealMeetings] = useState<Meeting[]>(initialMeetings);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeXhrRef = useRef<XMLHttpRequest | null>(null);
 
-  // Load authenticated user's real meetings from Supabase on mount
+  // Clean up active upload on component unmount
   useEffect(() => {
+    return () => {
+      if (activeXhrRef.current) {
+        activeXhrRef.current.abort();
+        activeXhrRef.current = null;
+      }
+    };
+  }, []);
+
+  // Load authenticated user's real meetings from Supabase if not pre-fetched on server
+  useEffect(() => {
+    if (initialMeetings && initialMeetings.length > 0) {
+      setRealMeetings(initialMeetings);
+      return;
+    }
+
     let isMounted = true;
     async function loadUserMeetings() {
       try {
@@ -44,7 +60,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialMeetings]);
 
   // Static sample meetings retained as separate demo items
   const demoMeetings: Meeting[] = sampleMeetings.map((m) => ({
@@ -70,6 +86,8 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
     setUploadState({ status: "uploading", progress: 0, filename: file.name });
 
     try {
+      const effectiveContentType = file.type || "video/mp4";
+
       // 1. Request short-lived presigned upload URL from server
       const res = await fetch("/api/recordings/upload-url", {
         method: "POST",
@@ -78,7 +96,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
         },
         body: JSON.stringify({
           filename: file.name,
-          contentType: file.type || "video/mp4",
+          contentType: effectiveContentType,
         }),
       });
 
@@ -98,11 +116,11 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
       // 2. Direct upload to Cloudflare R2 bucket with real-time progress
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        activeXhrRef.current = xhr;
         xhr.open("PUT", uploadUrl, true);
 
-        if (file.type) {
-          xhr.setRequestHeader("Content-Type", file.type);
-        }
+        // Always set the exact same Content-Type that was signed to prevent 403 SignatureDoesNotMatch
+        xhr.setRequestHeader("Content-Type", effectiveContentType);
 
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable) {
@@ -112,6 +130,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
         };
 
         xhr.onload = () => {
+          activeXhrRef.current = null;
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve();
           } else {
@@ -120,10 +139,12 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
         };
 
         xhr.onerror = () => {
+          activeXhrRef.current = null;
           reject(new Error("Network error during upload to storage"));
         };
 
         xhr.onabort = () => {
+          activeXhrRef.current = null;
           reject(new Error("Upload cancelled"));
         };
 
@@ -139,7 +160,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
         body: JSON.stringify({
           objectKey,
           filename: file.name,
-          mimeType: file.type || "video/mp4",
+          mimeType: effectiveContentType,
           size: file.size,
         }),
       });
@@ -164,11 +185,12 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
         setUploadState((prev) => (prev.status === "success" ? { status: "idle" } : prev));
       }, 4000);
     } catch (err) {
+      activeXhrRef.current = null;
       const message = err instanceof Error ? err.message : "Upload failed";
       setUploadState({ status: "error", message });
       setTimeout(() => {
         setUploadState((prev) => (prev.status === "error" ? { status: "idle" } : prev));
-      }, 6000);
+      }, 7000);
     }
   }
 
@@ -190,6 +212,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
           label={<><span>Filters</span>{type !== "all" && <span className="h-1.5 w-1.5 rounded-full bg-brand" />}</>}
           items={[
             { label: "All types", onClick: () => setType("all") },
+            { label: "Uploads", onClick: () => setType("Upload") },
             { label: "Internal", onClick: () => setType("Internal") },
             { label: "Customer", onClick: () => setType("Customer") },
             { label: "Planning", onClick: () => setType("Planning") }
@@ -229,6 +252,23 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
           </Button>
         )}
       </div>
+
+      {uploadState.status === "error" && (
+        <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-300">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} className="shrink-0 text-rose-400" />
+            <span>{uploadState.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUploadState({ status: "idle" })}
+            className="text-rose-400 hover:text-rose-200 text-xs font-semibold"
+            aria-label="Dismiss upload error"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {visible.length ? <MeetingList meetings={visible} /> : (
         <EmptyState

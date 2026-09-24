@@ -39,8 +39,8 @@ export function MeetingList({ meetings }: { meetings: Meeting[] }) {
               <span className="mt-1 block truncate text-[12px] leading-4 text-muted">{meeting.summary}</span>
             </Link>
             <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-2 text-[12px] text-muted lg:col-auto lg:row-auto lg:block">
-              <span>{meeting.date}</span>
-              <span className="mt-0.5 block text-[11px]">{meeting.time}</span>
+              <span suppressHydrationWarning>{meeting.date}</span>
+              <span suppressHydrationWarning className="mt-0.5 block text-[11px]">{meeting.time}</span>
               <span className="lg:hidden">· {meeting.duration}</span>
             </div>
             <span className="hidden text-[13px] text-muted lg:block">{meeting.duration}</span>
