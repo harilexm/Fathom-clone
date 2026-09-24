@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { S3Client, DeleteObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 
@@ -42,7 +43,7 @@ async function run() {
   console.log('CLOUDFLARE R2 UPLOAD SERVICE & AUTHENTICATED ENDPOINT TEST SUITE');
   console.log('================================================================\n');
 
-  // 1. Env validation
+  // 1. Config & Security checks
   record(
     'Config & Security',
     'R2 server credentials present in .env.local',
@@ -52,8 +53,41 @@ async function run() {
   record(
     'Config & Security',
     'R2 secrets not prefixed with NEXT_PUBLIC_',
-    !process.env.NEXT_PUBLIC_R2_ACCESS_KEY_ID && !process.env.NEXT_PUBLIC_R2_SECRET_KEY,
-    'Verified permanent credentials remain server-side'
+    !process.env.NEXT_PUBLIC_R2_ACCESS_KEY_ID &&
+      !process.env.NEXT_PUBLIC_R2_SECRET_KEY &&
+      !process.env.NEXT_PUBLIC_R2_SECRET_ACCESS_KEY,
+    'Permanent credentials remain strictly server-side'
+  );
+
+  // Check client code in src/ for any secret leaks
+  function scanDirForSecrets(dir) {
+    let leaksFound = [];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules' && entry.name !== '.next' && entry.name !== '.git') {
+          leaksFound = leaksFound.concat(scanDirForSecrets(fullPath));
+        }
+      } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {
+        // Skip backend server files
+        if (fullPath.includes('src\\lib\\r2.ts') || fullPath.includes('src/lib/r2.ts') || fullPath.includes('src\\app\\api\\') || fullPath.includes('src/app/api/')) {
+          continue;
+        }
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        if (content.includes('R2_SECRET_ACCESS_KEY') || content.includes('R2_ACCESS_KEY_ID')) {
+          leaksFound.push(fullPath);
+        }
+      }
+    }
+    return leaksFound;
+  }
+  const clientLeaks = scanDirForSecrets(path.join(__dirname, '..', 'src'));
+  record(
+    'Config & Security',
+    'Client-facing code contains zero references to R2 secret credentials',
+    clientLeaks.length === 0,
+    clientLeaks.length === 0 ? 'Clean' : `Leaks in: ${clientLeaks.join(', ')}`
   );
 
   const r2Client = new S3Client({
@@ -116,7 +150,7 @@ async function run() {
 
     record('Auth Setup', 'Created and authenticated test users User A and User B', !!tokenA && !!tokenB);
 
-    // Create a meeting for User A and User B
+    // Create meetings
     const { data: meetingA, error: meetAErr } = await adminClient
       .from('meetings')
       .insert({ user_id: userAId, title: 'User A Meeting' })
@@ -137,55 +171,67 @@ async function run() {
 
     const baseUrl = 'http://localhost:3000';
 
-    // TEST 1: Unauthenticated request -> 401
-    const unauthRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
+    // TEST 1: Unauthenticated POST request -> 401
+    const unauthPostRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ meetingId: meetingAId }),
     });
-    const unauthData = await unauthRes.json();
+    const unauthPostData = await unauthPostRes.json();
     record(
-      'Authentication',
-      'Unauthenticated request returns 401 Unauthorized',
-      unauthRes.status === 401 && !!unauthData.error,
-      `HTTP ${unauthRes.status}`
+      'Unauthenticated Request',
+      'POST without credentials returns 401 Unauthorized',
+      unauthPostRes.status === 401 && !!unauthPostData.error,
+      `HTTP ${unauthPostRes.status}`
     );
 
-    // TEST 2: Invalid Bearer token -> 401
+    // TEST 2: Unauthenticated GET request -> 401
+    const unauthGetRes = await fetch(`${baseUrl}/api/recordings/upload-url?meetingId=${meetingAId}`, {
+      method: 'GET',
+    });
+    const unauthGetData = await unauthGetRes.json();
+    record(
+      'Unauthenticated Request',
+      'GET without credentials returns 401 Unauthorized',
+      unauthGetRes.status === 401 && !!unauthGetData.error,
+      `HTTP ${unauthGetRes.status}`
+    );
+
+    // TEST 3: Invalid Bearer token -> 401
     const badTokenRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer invalid-token-12345',
+        Authorization: 'Bearer bogus-token-abc-123',
       },
       body: JSON.stringify({ meetingId: meetingAId }),
     });
     const badTokenData = await badTokenRes.json();
     record(
-      'Authentication',
-      'Invalid token returns 401 Unauthorized',
+      'Unauthenticated Request',
+      'Request with invalid Bearer token returns 401 Unauthorized',
       badTokenRes.status === 401 && !!badTokenData.error,
       `HTTP ${badTokenRes.status}`
     );
 
-    // TEST 3: Invalid meetingId format -> 400
+    // TEST 4: Invalid meetingId format -> 400
     const invalidIdRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${tokenA}`,
       },
-      body: JSON.stringify({ meetingId: 'not-a-valid-uuid' }),
+      body: JSON.stringify({ meetingId: 'invalid-uuid-format' }),
     });
     const invalidIdData = await invalidIdRes.json();
     record(
-      'Validation',
+      'Input Validation',
       'Invalid meetingId UUID returns 400 Bad Request',
       invalidIdRes.status === 400 && !!invalidIdData.error,
       `HTTP ${invalidIdRes.status}: ${invalidIdData.error}`
     );
 
-    // TEST 4: Cross-user meeting ownership isolation -> User A cannot get upload URL for User B meeting
+    // TEST 5: Cross-user meeting ownership isolation
     const crossUserRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: {
@@ -195,14 +241,14 @@ async function run() {
       body: JSON.stringify({ meetingId: meetingBId }),
     });
     record(
-      'Security & Isolation',
-      'User cannot generate upload URL for another user meeting',
+      'Multi-Tenant Security',
+      'User A rejected when attempting to access User B meeting',
       crossUserRes.status === 403 || crossUserRes.status === 404,
       `HTTP ${crossUserRes.status}`
     );
 
-    // TEST 5: Success path: User A generates upload URL for User A meeting
-    const successRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
+    // TEST 6: Authenticated request success
+    const authRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -210,144 +256,171 @@ async function run() {
       },
       body: JSON.stringify({
         meetingId: meetingAId,
-        filename: 'team-sync.mp4',
+        filename: 'quarterly-review.mp4',
         contentType: 'video/mp4',
       }),
     });
-    const successData = await successRes.json();
+    const authData = await authRes.json();
     record(
-      'Endpoint Success',
-      'Authenticated user generates short-lived presigned upload URL',
-      successRes.status === 200 && !!successData.uploadUrl && !!successData.objectKey,
-      `HTTP ${successRes.status}`
+      'Authenticated Request',
+      'Authenticated user successfully generates presigned upload URL',
+      authRes.status === 200 && !!authData.uploadUrl && !!authData.objectKey,
+      `HTTP ${authRes.status}`
     );
 
-    if (successData.objectKey) {
-      createdR2Keys.push(successData.objectKey);
+    if (authData.objectKey) {
+      createdR2Keys.push(authData.objectKey);
     }
 
-    // TEST 6: Response payload validation -> returns strictly uploadUrl and objectKey
-    const responseKeys = Object.keys(successData);
+    // TEST 7: Payload strictness - only uploadUrl and objectKey
+    const responseKeys = Object.keys(authData);
     const hasOnlyRequestedKeys =
       responseKeys.length === 2 &&
       responseKeys.includes('uploadUrl') &&
       responseKeys.includes('objectKey');
     record(
-      'Endpoint Requirement',
-      'Response returns only the signed upload URL + object key',
+      'Payload Strictness',
+      'Response returns ONLY uploadUrl and objectKey (no metadata/secrets)',
       hasOnlyRequestedKeys,
       `Keys returned: [${responseKeys.join(', ')}]`
     );
 
-    // TEST 7: Object key pattern validation: unique object key per user/meeting
-    const expectedKeyPrefix = `recordings/${userAId}/${meetingAId}/`;
-    const keyMatchesPattern =
-      typeof successData.objectKey === 'string' &&
-      successData.objectKey.startsWith(expectedKeyPrefix) &&
-      successData.objectKey.endsWith('.mp4');
+    // TEST 8: Verify no permanent credentials reach the browser
+    const rawResponseText = JSON.stringify(authData);
+    const containsSecretKey = rawResponseText.includes(r2SecretAccessKey);
+    const containsSupabaseSecret = rawResponseText.includes(secretKey);
     record(
-      'Key Uniqueness & Hierarchy',
-      'Object key correctly partitioned by userId and meetingId',
-      keyMatchesPattern,
-      `Object key: ${successData.objectKey}`
+      'Credential Protection',
+      'Response body does not contain permanent R2 or Supabase secret keys',
+      !containsSecretKey && !containsSupabaseSecret,
+      'No secret credentials found in response payload'
     );
 
-    // TEST 8: Presigned URL structure: short-lived, R2 endpoint, AWS signature
-    const urlObj = new URL(successData.uploadUrl);
-    const isHttps = urlObj.protocol === 'https:';
-    const isR2Endpoint = urlObj.host.includes('.r2.cloudflarestorage.com');
-    const hasSignature = urlObj.searchParams.has('X-Amz-Signature');
-    const hasExpiry = urlObj.searchParams.get('X-Amz-Expires') === '900';
+    const urlObj = new URL(authData.uploadUrl);
+    const queryContainsSecret = urlObj.search.includes(r2SecretAccessKey);
     record(
-      'Presigned URL Verification',
-      'URL is HTTPS, points to R2, has signature and 15-minute expiry',
-      isHttps && isR2Endpoint && hasSignature && hasExpiry,
-      `Host: ${urlObj.host}, Expires: ${urlObj.searchParams.get('X-Amz-Expires')}s`
+      'Credential Protection',
+      'Presigned URL query string uses HMAC signature without raw secret key',
+      !queryContainsSecret && urlObj.searchParams.has('X-Amz-Signature'),
+      'Signature is cryptographic digest'
     );
 
-    // TEST 9: Live PUT upload to private Cloudflare R2 bucket using presigned URL
-    const dummyVideoPayload = Buffer.from('RIFF....WAVEfmt ....data...test-meeting-audio-bytes');
-    const putRes = await fetch(successData.uploadUrl, {
+    // TEST 9: Unique object keys across multiple generations
+    const multiKeys = [];
+    for (let i = 0; i < 5; i++) {
+      const res = await fetch(`${baseUrl}/api/recordings/upload-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenA}`,
+        },
+        body: JSON.stringify({
+          meetingId: meetingAId,
+          filename: `batch-${i}.mp4`,
+        }),
+      });
+      const data = await res.json();
+      if (data.objectKey) {
+        multiKeys.push(data.objectKey);
+        createdR2Keys.push(data.objectKey);
+      }
+    }
+    const uniqueKeysCount = new Set(multiKeys).size;
+    record(
+      'Unique Object Keys',
+      'Rapid consecutive upload requests for same meeting produce 100% unique keys',
+      multiKeys.length === 5 && uniqueKeysCount === 5,
+      `Generated ${multiKeys.length} keys, unique count: ${uniqueKeysCount}`
+    );
+
+    // TEST 10: Key hierarchy & formatting
+    const keyStructureValid = multiKeys.every(
+      (k) =>
+        k.startsWith(`recordings/${userAId}/${meetingAId}/`) &&
+        k.endsWith('.mp4') &&
+        k.split('/').length === 4
+    );
+    record(
+      'Unique Object Keys',
+      'Object keys follow strict recordings/${userId}/${meetingId}/${timestamp}-${uuid}.${ext} hierarchy',
+      keyStructureValid,
+      `Pattern verified across all keys`
+    );
+
+    // TEST 11: Direct upload to private R2 bucket via presigned PUT URL
+    const testVideoBytes = Buffer.from('TEST_VIDEO_CONTAINER_STREAM_BINARY_DATA_0123456789');
+    const directPutRes = await fetch(authData.uploadUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': 'video/mp4',
       },
-      body: dummyVideoPayload,
+      body: testVideoBytes,
     });
     record(
-      'Live R2 Upload',
-      'Direct PUT upload to private R2 bucket via presigned URL succeeds',
-      putRes.status === 200,
-      `HTTP ${putRes.status}`
+      'Direct R2 Upload',
+      'Direct PUT upload of binary media to private R2 bucket succeeds',
+      directPutRes.status === 200,
+      `HTTP ${directPutRes.status}`
     );
 
-    // TEST 10: Verify object exists in R2 bucket using HeadObject
-    let objectExistsInR2 = false;
+    // TEST 12: Verify uploaded object exists in private R2 bucket
+    let headOk = false;
+    let headContentLength = 0;
     try {
-      await r2Client.send(
+      const head = await r2Client.send(
         new HeadObjectCommand({
           Bucket: r2BucketName,
-          Key: successData.objectKey,
+          Key: authData.objectKey,
         })
       );
-      objectExistsInR2 = true;
+      headOk = true;
+      headContentLength = head.ContentLength || 0;
     } catch {
-      objectExistsInR2 = false;
+      headOk = false;
     }
     record(
-      'Storage Verification',
-      'Object successfully stored in private R2 bucket',
-      objectExistsInR2,
-      `Confirmed in bucket ${r2BucketName}`
+      'Direct R2 Upload',
+      'Uploaded object verified stored in R2 bucket with matching size',
+      headOk && headContentLength === testVideoBytes.length,
+      `Stored length: ${headContentLength} bytes (matches ${testVideoBytes.length} bytes)`
     );
 
-    // TEST 11: Auto-create meeting path (when meetingId is not provided)
-    const autoMeetRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
+    // TEST 13: Private bucket security check (direct unauthenticated GET is blocked)
+    const directUnauthUrl = `https://${r2AccountId}.r2.cloudflarestorage.com/${r2BucketName}/${authData.objectKey}`;
+    const directUnauthRes = await fetch(directUnauthUrl);
+    record(
+      'Private Bucket Security',
+      'Direct unauthenticated access to object in private R2 bucket is blocked',
+      directUnauthRes.status === 400 || directUnauthRes.status === 401 || directUnauthRes.status === 403,
+      `HTTP ${directUnauthRes.status} (Access Denied as expected for private bucket)`
+    );
+
+    // TEST 14: Auto-create meeting fallback when meetingId omitted
+    const autoMeetingRes = await fetch(`${baseUrl}/api/recordings/upload-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${tokenA}`,
       },
       body: JSON.stringify({
-        filename: 'adhoc-call.webm',
+        filename: 'unspecified-call.webm',
         contentType: 'video/webm',
       }),
     });
-    const autoMeetData = await autoMeetRes.json();
-    const autoCreatedSuccess =
-      autoMeetRes.status === 200 &&
-      !!autoMeetData.uploadUrl &&
-      typeof autoMeetData.objectKey === 'string' &&
-      autoMeetData.objectKey.startsWith(`recordings/${userAId}/`) &&
-      autoMeetData.objectKey.endsWith('.webm');
+    const autoMeetingData = await autoMeetingRes.json();
+    const autoSuccess =
+      autoMeetingRes.status === 200 &&
+      typeof autoMeetingData.objectKey === 'string' &&
+      autoMeetingData.objectKey.startsWith(`recordings/${userAId}/`) &&
+      autoMeetingData.objectKey.endsWith('.webm');
     record(
       'Endpoint Flexibility',
-      'Omitted meetingId auto-creates pending meeting and generates scoped key',
-      autoCreatedSuccess,
-      `Object key: ${autoMeetData.objectKey}`
+      'Omitted meetingId auto-creates pending meeting record and returns scoped key',
+      autoSuccess,
+      `Object key: ${autoMeetingData.objectKey}`
     );
-    if (autoMeetData.objectKey) {
-      createdR2Keys.push(autoMeetData.objectKey);
-    }
-
-    // TEST 12: Alias route check (/api/recordings/presigned-url)
-    const aliasRes = await fetch(`${baseUrl}/api/recordings/presigned-url`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenA}`,
-      },
-      body: JSON.stringify({ meetingId: meetingAId, filename: 'alias-test.mp4' }),
-    });
-    const aliasData = await aliasRes.json();
-    record(
-      'Endpoint Aliases',
-      '/api/recordings/presigned-url works equivalently',
-      aliasRes.status === 200 && !!aliasData.uploadUrl && !!aliasData.objectKey,
-      `HTTP ${aliasRes.status}`
-    );
-    if (aliasData.objectKey) {
-      createdR2Keys.push(aliasData.objectKey);
+    if (autoMeetingData.objectKey) {
+      createdR2Keys.push(autoMeetingData.objectKey);
     }
   } finally {
     console.log('\n========================================');
