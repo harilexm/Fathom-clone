@@ -11,6 +11,7 @@ export type AccountDetails = {
   isAnonymous: boolean;
   plan: string;
   trialEndsAt: string;
+  credits: number;
 };
 
 const links = [

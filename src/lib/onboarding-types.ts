@@ -15,4 +15,5 @@ export type UserProfile = {
   meeting_preference: MeetingPreference | null;
   sharing_preference: SharingPreference | null;
   job_function: JobFunction | null;
+  credits_balance: number;
 };

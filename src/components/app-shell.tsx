@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChartNoAxesColumnIncreasing, Database, Folder, Play, Search, Settings, Sparkles, UsersRound, Video } from "lucide-react";
+import { ChartNoAxesColumnIncreasing, Folder, Play, Search, Settings, Sparkles, UsersRound, Video, Coins } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AskFathomPanel } from "@/components/ask-fathom-panel";
 import { AccountMenu, type AccountDetails } from "@/components/account-menu";
@@ -94,9 +94,9 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
               <Video size={20} />
               <span className="hidden sm:inline">Start Test Call</span>
             </button>
-            <span className="hidden items-center gap-2 sm:flex" title="Credits are not connected in this preview">
-              <Database size={20} />
-              <span className="hidden sm:inline">Credits</span>
+            <span className="hidden cursor-default items-center gap-1.5 rounded-full bg-[#1e2a3a] px-3 py-1 text-[13px] font-semibold text-[#f3f6fc] sm:flex" title={`${account.credits ?? 0} credits available`}>
+              <Coins size={16} className="text-[#fbbf24]" />
+              <span>{account.credits ?? 0}</span>
             </span>
             <span aria-hidden="true" className="h-[24px] w-px bg-[#1e2a3a]" />
             <AccountMenu account={account} />

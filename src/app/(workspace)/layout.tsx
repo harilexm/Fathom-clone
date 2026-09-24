@@ -18,5 +18,6 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     isAnonymous: user.is_anonymous ?? false,
     plan: profile.plan,
     trialEndsAt: profile.trial_ends_at,
+    credits: profile.credits_balance,
   }}>{children}</AppShell>;
 }
