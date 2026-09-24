@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChartNoAxesColumnIncreasing, Database, Folder, Play, Search, Settings, Sparkles, UsersRound, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AskFathomPanel } from "@/components/ask-fathom-panel";
@@ -16,8 +16,26 @@ const tabs = [
 
 export function AppShell({ children, account }: { children: React.ReactNode; account: AccountDetails }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const currentQuery = searchParams.get("q") || "";
+  const [globalQuery, setGlobalQuery] = useState(currentQuery);
   const [askCollapsed, setAskCollapsed] = useState(false);
   const [mobileAskOpen, setMobileAskOpen] = useState(false);
+
+  useEffect(() => {
+    setGlobalQuery(currentQuery);
+  }, [currentQuery]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (globalQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(globalQuery.trim())}`);
+    } else {
+      router.push(`/search`);
+    }
+  };
   const mobilePanel = useRef<HTMLElement>(null);
   const askButton = useRef<HTMLButtonElement>(null);
   const closeMobileAsk = useCallback(() => {
@@ -57,10 +75,16 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
             </span>
             <span>FATHOM</span>
           </Link>
-          <Link href="/search" aria-label="Global search" aria-current={pathname === "/search" ? "page" : undefined} className="ml-2 flex h-[38px] w-[340px] shrink-0 items-center gap-2.5 rounded-md border border-[#1e2a3a] bg-[#0f1520] px-3 text-[13px] text-[#7b8da3] hover:border-[#2c3d52] hover:text-[#d1d9e5] sm:ml-4">
+          <form onSubmit={handleSearch} className="ml-2 flex h-[38px] w-[340px] shrink-0 items-center gap-2.5 rounded-md border border-[#1e2a3a] bg-[#0f1520] px-3 text-[13px] text-[#7b8da3] focus-within:border-[#2c3d52] focus-within:text-[#d1d9e5] sm:ml-4">
             <Search size={16} className="shrink-0" />
-            <span className="truncate">Search call recordings, people, topics...</span>
-          </Link>
+            <input
+              type="text"
+              value={globalQuery}
+              onChange={(e) => setGlobalQuery(e.target.value)}
+              placeholder="Search call recordings, people, topics..."
+              className="w-full bg-transparent text-[#e8eef8] outline-none placeholder:text-[#7b8da3]"
+            />
+          </form>
           <div className="ml-auto flex shrink-0 items-center gap-6 text-[14px] font-medium text-[#c0cce0]">
             <Link href="/settings" aria-label="Settings" aria-current={pathname === "/settings" ? "page" : undefined} className="flex items-center gap-2 hover:text-white">
               <Settings size={20} />
