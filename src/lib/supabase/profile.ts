@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { UserProfile } from "@/lib/onboarding-types";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -8,9 +9,9 @@ export async function ensureAndLoadProfile(supabase: ServerClient, userId: strin
 
   const { data: profile, error: readError } = await supabase
     .from("profiles")
-    .select("plan, trial_ends_at, onboarding_completed")
+    .select("plan, trial_ends_at, onboarding_completed, calendar_connected, calendar_status, onboarding_step, usage_type, meeting_preference, sharing_preference, job_function")
     .eq("id", userId)
     .single();
   if (readError || !profile) throw new Error("Unable to load user profile");
-  return profile;
+  return profile as UserProfile;
 }
