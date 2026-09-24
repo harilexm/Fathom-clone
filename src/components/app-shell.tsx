@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartNoAxesColumnIncreasing, ChevronDown, Database, Folder, Play, Search, Settings, Sparkles, UsersRound, Video } from "lucide-react";
+import { ChartNoAxesColumnIncreasing, Database, Folder, Play, Search, Settings, Sparkles, UsersRound, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AskFathomPanel } from "@/components/ask-fathom-panel";
-import { signOut } from "@/app/login/actions";
+import { AccountMenu, type AccountDetails } from "@/components/account-menu";
 
 const tabs = [
   { href: "/my-calls", label: "My Calls", icon: Play },
@@ -14,7 +14,7 @@ const tabs = [
   { href: "/insights", label: "Insights", icon: ChartNoAxesColumnIncreasing }
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, account }: { children: React.ReactNode; account: AccountDetails }) {
   const pathname = usePathname();
   const [askCollapsed, setAskCollapsed] = useState(false);
   const [mobileAskOpen, setMobileAskOpen] = useState(false);
@@ -75,10 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="hidden sm:inline">Credits</span>
             </span>
             <span aria-hidden="true" className="h-[24px] w-px bg-[#1e2a3a]" />
-            <form action={signOut}><button type="submit" aria-label="Log out" title="Log out" className="flex items-center gap-2 hover:opacity-80">
-              <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#2563eb] text-[14px] font-bold text-white">JD</span>
-              <ChevronDown size={16} className="text-[#8e9bac]" />
-            </button></form>
+            <AccountMenu account={account} />
           </div>
         </div>
         <nav aria-label="Meeting navigation" className="flex h-[56px] items-stretch gap-8 overflow-x-auto px-6 lg:px-10">
