@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --canvas: #0a0e17;
+  --surface: #0f1520;
+  --surface-raised: #141c29;
+  --border: #1e2a3a;
+  --text: #e4ecf7;
+  --muted: #7b8da3;
+  --accent: #4b83ff;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--canvas); color: var(--text); }
+* { box-sizing: border-box; }
+button, input, textarea, select { outline-color: var(--accent); }
+::selection { background: #174e83; color: #fff; }
+.surface { @apply rounded-lg border bg-[#0f1520]; border-color: var(--border); }
+.field { @apply rounded-md border bg-[#0d1219] text-ink placeholder:text-[#556376]; border-color: var(--border); }
+.muted-divider { border-color: var(--border); }
+.fade-in { animation: fade-in 180ms ease-out both; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
