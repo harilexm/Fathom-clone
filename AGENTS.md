@@ -18,6 +18,8 @@
 - Failed processing uses 0 credits.
 - Avoid unnecessary libraries, abstractions, or duplicate implementations.
 - Clearly label anything that is stubbed/demo-only.
+- Strictly separate demo/sample fixtures from authenticated user uploads; real meetings must render genuine pending, processing, or unavailable states, never fallback demo text or sample share links.
+- Ensure media metadata (e.g. video/audio duration) pipelines are resilient and self-healing with multi-layer fallbacks (metadata parsing, container atom probing, transcript timestamps, and client sync).
 
 ## 8x / Git
 - Never ignore, delete, rewrite, or fabricate `.agent-logs/`.
