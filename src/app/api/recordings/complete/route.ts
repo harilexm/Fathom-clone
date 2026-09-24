@@ -130,6 +130,12 @@ export async function POST(request: NextRequest) {
           ? body.size_bytes
           : headResult.ContentLength || 0;
 
+    const requestedDuration = body.durationSeconds ?? body.duration_seconds;
+    const durationSeconds = typeof requestedDuration === "number" &&
+      Number.isFinite(requestedDuration) && requestedDuration > 0 && requestedDuration < 2147483647
+      ? Math.max(1, Math.round(requestedDuration))
+      : 0;
+
     // Idempotency check: If a recording for this exact objectKey already exists, return it idempotently
     const { data: existingRecording } = await supabase
       .from("recordings")
@@ -206,6 +212,8 @@ export async function POST(request: NextRequest) {
         mime_type: mimeType,
         size: fileSize,
         size_bytes: fileSize,
+        duration: durationSeconds,
+        duration_seconds: durationSeconds,
         status: "uploaded",
       })
       .select()

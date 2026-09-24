@@ -23,6 +23,44 @@ export interface DbMeetingRecord {
     status: string;
     created_at: string;
   }>;
+  summary_versions?: Array<{
+    version: string;
+    summary: string;
+    content?: string | null;
+    overview?: unknown;
+    created_at: string;
+  }>;
+  transcript_segments?: Array<{
+    id: string;
+    speaker: string;
+    speaker_initials?: string | null;
+    text: string;
+    start_time: number;
+    sequence: number;
+  }>;
+  action_items?: Array<{
+    id: string;
+    task: string;
+    text?: string | null;
+    owner: string;
+    due_date?: string | null;
+    due_at?: string | null;
+    completed: boolean;
+  }>;
+  highlights?: Array<{
+    id: string;
+    title: string;
+    start_timestamp: number;
+    start_time: number;
+    kind?: string | null;
+  }>;
+  share_links?: Array<{
+    id: string;
+    token: string;
+    status: string;
+    is_active?: boolean;
+    created_at: string;
+  }>;
 }
 
 export function formatMeetingDate(dateStr: string): string {
@@ -54,27 +92,41 @@ export function formatMeetingTime(dateStr: string): string {
 
 export function formatMeetingDuration(seconds?: number): string {
   if (!seconds || seconds <= 0) return "—";
-  const mins = Math.round(seconds / 60);
-  if (mins < 60) return `${mins} min`;
-  const hours = Math.floor(mins / 60);
-  const remainingMins = mins % 60;
-  return remainingMins > 0 ? `${hours} hr ${remainingMins} min` : `${hours} hr`;
+  const wholeSeconds = Math.round(seconds);
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor((wholeSeconds % 3600) / 60);
+  const remainingSeconds = wholeSeconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
+    : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+export function getLatestRecording(dbMeeting: DbMeetingRecord) {
+  return dbMeeting.recordings
+    ?.filter((recording) => recording.r2_object_key)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+}
+
+function formatTimestamp(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainder = String(total % 60).padStart(2, "0");
+  return hours > 0 ? hours + ":" + String(minutes).padStart(2, "0") + ":" + remainder : minutes + ":" + remainder;
 }
 
 export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
-  const latestRecording = dbMeeting.recordings && dbMeeting.recordings.length > 0
-    ? dbMeeting.recordings[0]
-    : undefined;
+  const latestRecording = getLatestRecording(dbMeeting);
 
   const dateStr = dbMeeting.created_at || new Date().toISOString();
   const dateFormatted = formatMeetingDate(dateStr);
   const timeFormatted = formatMeetingTime(dateStr);
 
   const durationSec =
-    dbMeeting.duration_seconds ||
-    dbMeeting.duration ||
     latestRecording?.duration_seconds ||
-    latestRecording?.duration;
+    latestRecording?.duration ||
+    dbMeeting.duration_seconds ||
+    dbMeeting.duration;
   const durationText = formatMeetingDuration(durationSec);
 
   // Status mapping
@@ -92,6 +144,45 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
       ? dbMeeting.participants
       : ["You"];
 
+  const summaryVersion = dbMeeting.summary_versions
+    ?.filter((item) => (item.summary || item.content || "").trim() || (Array.isArray(item.overview) && item.overview.length > 0))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  const summaryText = (summaryVersion?.summary || summaryVersion?.content || "").trim();
+  const overview = Array.isArray(summaryVersion?.overview)
+    ? summaryVersion.overview.filter((point): point is string => typeof point === "string" && point.trim().length > 0)
+    : [];
+  const transcript = (dbMeeting.transcript_segments || [])
+    .slice()
+    .sort((a, b) => a.sequence - b.sequence || a.start_time - b.start_time)
+    .map((turn) => ({
+      id: turn.id,
+      speaker: turn.speaker || "Speaker",
+      initials: turn.speaker_initials || (turn.speaker || "Speaker").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+      color: "bg-[#214656] text-[#b8e7f2]",
+      time: formatTimestamp(turn.start_time),
+      text: turn.text,
+    }));
+  const actions = (dbMeeting.action_items || []).map((item) => ({
+    id: item.id,
+    text: item.task || item.text || "Untitled action",
+    owner: item.owner || "Unassigned",
+    due: item.due_date || (item.due_at ? new Date(item.due_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No due date"),
+    done: item.completed,
+  }));
+  const highlights = (dbMeeting.highlights || [])
+    .slice()
+    .sort((a, b) => a.start_timestamp - b.start_timestamp)
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      time: formatTimestamp(item.start_timestamp || item.start_time),
+      kind: item.kind || "Highlight",
+    }));
+
+  const activeShareLink = (dbMeeting.share_links || []).find(
+    (link) => link.status === "active" && link.is_active !== false
+  );
+
   return {
     id: dbMeeting.id,
     title: dbMeeting.title || "Untitled Meeting",
@@ -102,11 +193,15 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
     category: dbMeeting.source === "upload" ? "Upload" : "Internal",
     status: statusText,
     accent: "blue",
-    summary: latestRecording?.r2_object_key ? "Recording uploaded to storage" : "Uploaded recording",
-    overview: [],
-    actions: [],
-    highlights: [],
-    transcript: [],
+    summary: summaryText || (latestRecording?.r2_object_key ? "Recording uploaded to storage" : "Uploaded recording"),
+    overview,
+    actions,
+    highlights,
+    transcript,
     isDemo: false,
+    analysisStatus: dbMeeting.status,
+    summaryAvailable: Boolean(summaryText || overview.length),
+    summaryVersion: summaryVersion?.version,
+    shareToken: activeShareLink?.token,
   };
 }

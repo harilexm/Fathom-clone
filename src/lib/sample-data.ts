@@ -18,6 +18,10 @@ export type Meeting = {
   highlights: Highlight[];
   transcript: TranscriptTurn[];
   isDemo?: boolean;
+  analysisStatus?: string;
+  summaryAvailable?: boolean;
+  summaryVersion?: string;
+  shareToken?: string;
 };
 
 const longSpeakers = [

@@ -16,6 +16,33 @@ type UploadState =
   | { status: "success"; filename: string }
   | { status: "error"; message: string };
 
+function readMediaDurationSeconds(file: File): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const media = document.createElement(file.type.startsWith("audio/") ? "audio" : "video");
+    const objectUrl = URL.createObjectURL(file);
+    let settled = false;
+    const timeout = window.setTimeout(() => finish(), 10000);
+    function finish(duration?: number) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      media.onloadedmetadata = null;
+      media.onerror = null;
+      media.removeAttribute("src");
+      media.load();
+      URL.revokeObjectURL(objectUrl);
+      resolve(duration);
+    }
+    media.onloadedmetadata = () => {
+      const duration = media.duration;
+      finish(Number.isFinite(duration) && duration > 0 ? Math.max(1, Math.round(duration)) : undefined);
+    };
+    media.onerror = () => finish();
+    media.preload = "metadata";
+    media.src = objectUrl;
+  });
+}
+
 export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] }) {
   const [scope, setScope] = useState<Scope>("all");
   const [type, setType] = useState<TypeFilter>("all");
@@ -152,6 +179,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
       });
 
       // 3. Persist meeting and recording records for authenticated user only after successful upload
+      const durationSeconds = await readMediaDurationSeconds(file);
       const completeRes = await fetch("/api/recordings/complete", {
         method: "POST",
         headers: {
@@ -162,6 +190,7 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
           filename: file.name,
           mimeType: effectiveContentType,
           size: file.size,
+          durationSeconds,
         }),
       });
 
