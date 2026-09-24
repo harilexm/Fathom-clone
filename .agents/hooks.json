@@ -1,0 +1,19 @@
+{
+  "agent-capture": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python -u capture_agent.py",
+        "timeout": 30
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python -u capture_agent.py",
+        "timeout": 30
+      }
+    ]
+  }
+}
