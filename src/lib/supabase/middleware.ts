@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const privatePaths = ["/my-calls", "/team-calls", "/playlists", "/insights", "/settings", "/search", "/meeting", "/pricing"];
+const privatePaths = ["/my-calls", "/team-calls", "/playlists", "/insights", "/settings", "/search", "/meeting", "/pricing", "/faqs", "/privacy-policy", "/terms-of-service", "/security-compliance", "/onboarding"];
 
 function redirectWithCookies(source: NextResponse, destination: URL) {
   const response = NextResponse.redirect(destination);
@@ -39,8 +39,8 @@ export async function updateSession(request: NextRequest) {
   if (!signedIn && privatePaths.some((base) => path === base || path.startsWith(base + "/"))) {
     return redirectWithCookies(response, new URL("/login", request.url));
   }
-  if (signedIn && (path === "/login" || path === "/onboarding" || path === "/")) {
-    return redirectWithCookies(response, new URL("/my-calls", request.url));
+  if (signedIn && (path === "/login" || path === "/")) {
+    return redirectWithCookies(response, new URL("/onboarding", request.url));
   }
   return response;
 }

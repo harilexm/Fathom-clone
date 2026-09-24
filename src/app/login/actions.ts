@@ -32,7 +32,7 @@ export async function authenticatePassword(_state: AuthState, formData: FormData
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: "Could not sign in. Check your email and password, then try again.", message: null };
   }
-  redirect("/my-calls");
+  redirect("/onboarding");
 }
 
 export async function signInWithGoogle() {
@@ -49,7 +49,7 @@ export async function signInAsGuest() {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInAnonymously();
   if (error) redirect("/login?error=guest");
-  redirect("/my-calls");
+  redirect("/onboarding");
 }
 
 export async function signOut() {

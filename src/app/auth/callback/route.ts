@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   if (!code) return NextResponse.redirect(new URL("/login?error=callback", request.url));
 
-  const response = NextResponse.redirect(new URL("/my-calls", request.url));
+  const response = NextResponse.redirect(new URL("/onboarding", request.url));
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
