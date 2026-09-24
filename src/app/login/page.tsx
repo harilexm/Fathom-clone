@@ -1,17 +1,55 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui";
+import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
-  return <main className="flex min-h-screen flex-col bg-canvas px-5 py-5">
-    <Link href="/my-calls" className="text-[15px] font-black tracking-[.13em] text-ink">FATHOM<span className="text-brand">.</span></Link>
-    <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[.12em] text-brand">Product preview</p>
-      <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
-      <p className="mt-2 text-sm leading-6 text-muted">Explore the meeting workspace with local sample calls.</p>
-      <div className="surface mt-6 p-5"><p className="text-xs leading-5 text-muted">Sign-in is not connected. You can open the sample workspace directly.</p><Link href="/my-calls" className="mt-4 block"><Button className="w-full">Open workspace <ArrowRight size={15} /></Button></Link></div>
-      <Link href="/onboarding" className="mt-5 text-center text-xs text-brand hover:underline">See the welcome flow</Link>
-    </div>
-    <p className="text-[10px] text-muted">Sample UI · No account is created</p>
-  </main>;
+const errors: Record<string, string> = {
+  google: "Google sign-in could not start. Please try again.",
+  guest: "Demo sign-in is unavailable. Please try again.",
+  callback: "Sign-in could not be completed. Please try again.",
+};
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
+
+  return (
+    <main className="flex min-h-screen flex-col bg-[#0a0e17] text-[#e8eef8]">
+      <header className="flex w-full items-center justify-center pt-12">
+        <Link href="/" className="flex shrink-0 items-center gap-3 text-[22px] font-bold tracking-[.2em] text-white" aria-label="Fathom home">
+          <span aria-hidden="true" className="flex h-8 items-center gap-[3px]">
+            <span className="h-[16px] w-[4px] rounded-full bg-[#4b83ff]" />
+            <span className="h-[28px] w-[4px] rounded-full bg-[#7badff]" />
+            <span className="h-[20px] w-[4px] rounded-full bg-[#4b83ff]" />
+            <span className="h-[14px] w-[4px] rounded-full bg-[#4b83ff]" />
+          </span>
+          <span>FATHOM</span>
+        </Link>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col items-center justify-center gap-12 px-6 pb-12 pt-8 lg:flex-row lg:justify-between lg:gap-24 lg:pb-24 lg:pt-0">
+
+        {/* Left Side: Quote */}
+        <div className="hidden max-w-[560px] flex-col lg:flex">
+          <div className="relative">
+            <span className="absolute -left-12 -top-12 text-[120px] font-black leading-none text-[#1e2a3a]/40">“</span>
+            <h2 className="relative z-10 whitespace-nowrap text-[32px] font-medium leading-[1.3] tracking-tight text-[#e8eef8]">
+              Focus on the conversation, not the notes.<br/>
+              <span className="text-[#ffab40]">Fathom remembers every detail.</span>
+            </h2>
+            <span className="absolute -bottom-24 right-16 text-[120px] font-black leading-none text-[#1e2a3a]/40">”</span>
+          </div>
+          <div className="mt-10 text-[14px] text-[#8e9bac]">
+            <p className="font-semibold text-[#c0cce0]">Umer Abdullah</p>
+            <p>Founder & CEO</p>
+          </div>
+        </div>
+
+        {/* Right Side: Form */}
+        <div className="w-full max-w-[400px] shrink-0">
+          <LoginForm initialError={error ? errors[error] ?? errors.callback : null} />
+          <p className="mt-6 text-center text-[11.5px] text-[#7b8da3]">
+            By using Fathom, you agree to the <a href="#" className="underline hover:text-[#c0cce0]">Terms of Service</a> and <a href="#" className="underline hover:text-[#c0cce0]">Privacy Policy</a>.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
 }
