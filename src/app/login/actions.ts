@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ensureAndLoadProfile } from "@/lib/supabase/profile";
 
 export type AuthState = { error: string | null; message: string | null };
 
@@ -32,14 +33,17 @@ export async function authenticatePassword(_state: AuthState, formData: FormData
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: "Could not sign in. Check your email and password, then try again.", message: null };
   }
-  redirect("/onboarding");
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return { error: "Could not sign in. Please try again.", message: null };
+  const profile = await ensureAndLoadProfile(supabase, user.id);
+  redirect(profile.onboarding_completed ? "/my-calls" : "/onboarding");
 }
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: callbackUrl() },
+    options: { redirectTo: callbackUrl(), queryParams: { prompt: "select_account" } },
   });
   if (error || !data.url) redirect("/login?error=google");
   redirect(data.url);
@@ -47,9 +51,10 @@ export async function signInWithGoogle() {
 
 export async function signInAsGuest() {
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInAnonymously();
-  if (error) redirect("/login?error=guest");
-  redirect("/onboarding");
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error || !data.user) redirect("/login?error=guest");
+  const profile = await ensureAndLoadProfile(supabase, data.user.id);
+  redirect(profile.onboarding_completed ? "/my-calls" : "/onboarding");
 }
 
 export async function signOut() {

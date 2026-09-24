@@ -40,7 +40,16 @@ export async function updateSession(request: NextRequest) {
     return redirectWithCookies(response, new URL("/login", request.url));
   }
   if (signedIn && (path === "/login" || path === "/")) {
-    return redirectWithCookies(response, new URL("/onboarding", request.url));
+    let destination = "/onboarding";
+    const { error: bootstrapError } = await supabase.rpc("ensure_profile");
+    if (!bootstrapError) {
+      const { data: profile } = await supabase.from("profiles")
+        .select("onboarding_completed")
+        .eq("id", data.claims.sub)
+        .maybeSingle();
+      if (profile?.onboarding_completed) destination = "/my-calls";
+    }
+    return redirectWithCookies(response, new URL(destination, request.url));
   }
   return response;
 }

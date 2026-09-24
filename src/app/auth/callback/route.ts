@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ensureAndLoadProfile } from "@/lib/supabase/profile";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -18,7 +19,9 @@ export async function GET(request: NextRequest) {
       },
     },
   );
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) return NextResponse.redirect(new URL("/login?error=callback", request.url));
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error || !data.user) return NextResponse.redirect(new URL("/login?error=callback", request.url));
+  const profile = await ensureAndLoadProfile(supabase, data.user.id);
+  response.headers.set("Location", new URL(profile.onboarding_completed ? "/my-calls" : "/onboarding", request.url).toString());
   return response;
 }
