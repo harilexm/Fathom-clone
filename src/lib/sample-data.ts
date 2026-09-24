@@ -10,13 +10,14 @@ export type Meeting = {
   duration: string;
   attendees: string[];
   category: string;
-  status: "Ready" | "Processing";
+  status: "Ready" | "Processing" | "Uploaded" | "Pending" | string;
   accent: string;
   summary: string;
   overview: string[];
   actions: ActionItem[];
   highlights: Highlight[];
   transcript: TranscriptTurn[];
+  isDemo?: boolean;
 };
 
 const longSpeakers = [

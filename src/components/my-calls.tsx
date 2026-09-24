@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, Upload, LoaderCircle, Check, AlertCircle } from "lucide-react";
-import { meetings } from "@/lib/sample-data";
+import { meetings as sampleMeetings, type Meeting } from "@/lib/sample-data";
+import { mapDbMeetingToMeeting, type DbMeetingRecord } from "@/lib/meetings";
 import { MeetingList } from "@/components/meeting-list";
 import { Button, Dropdown, EmptyState } from "@/components/ui";
 
@@ -15,13 +16,46 @@ type UploadState =
   | { status: "success"; filename: string }
   | { status: "error"; message: string };
 
-export function MyCalls() {
+export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] }) {
   const [scope, setScope] = useState<Scope>("all");
   const [type, setType] = useState<TypeFilter>("all");
+  const [realMeetings, setRealMeetings] = useState<Meeting[]>(initialMeetings);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const visible = scope === "shared" ? [] : meetings.filter((meeting) => {
+  // Load authenticated user's real meetings from Supabase on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUserMeetings() {
+      try {
+        const res = await fetch("/api/meetings");
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.meetings)) {
+            const mapped = data.meetings.map((m: DbMeetingRecord) => mapDbMeetingToMeeting(m));
+            setRealMeetings(mapped);
+          }
+        }
+      } catch {
+        // Fallback to initialMeetings on error
+      }
+    }
+    loadUserMeetings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Static sample meetings retained as separate demo items
+  const demoMeetings: Meeting[] = sampleMeetings.map((m) => ({
+    ...m,
+    isDemo: true,
+  }));
+
+  // Real user meetings appear first, followed by static demo meeting(s)
+  const allMeetings = [...realMeetings, ...demoMeetings];
+
+  const visible = scope === "shared" ? [] : allMeetings.filter((meeting) => {
     const matchesType = type === "all" || meeting.category === type;
     return matchesType;
   });
@@ -113,6 +147,15 @@ export function MyCalls() {
       if (!completeRes.ok) {
         const errData = await completeRes.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to persist meeting record");
+      }
+
+      const completeData = await completeRes.json();
+      if (completeData.meeting) {
+        const newMeeting = mapDbMeetingToMeeting({
+          ...completeData.meeting,
+          recordings: completeData.recording ? [completeData.recording] : [],
+        });
+        setRealMeetings((prev) => [newMeeting, ...prev.filter((m) => m.id !== newMeeting.id)]);
       }
 
       // 4. Success state

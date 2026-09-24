@@ -558,6 +558,43 @@ async function run() {
       crossCompleteRes.status === 403,
       `HTTP ${crossCompleteRes.status}`
     );
+
+    // TEST 19: Fetch meetings unauthenticated -> 401
+    const unauthMeetingsRes = await fetch(`${baseUrl}/api/meetings`);
+    record(
+      'User Meetings API',
+      'GET /api/meetings without auth returns 401 Unauthorized',
+      unauthMeetingsRes.status === 401,
+      `HTTP ${unauthMeetingsRes.status}`
+    );
+
+    // TEST 20: Fetch user meetings authenticated -> returns user real meetings with title, upload date, status
+    const authMeetingsRes = await fetch(`${baseUrl}/api/meetings`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    const authMeetingsData = await authMeetingsRes.json();
+    const meetingsList = authMeetingsData.meetings || [];
+    const hasUserAMeetings = meetingsList.length > 0 && meetingsList.every((m) => m.user_id === userAId);
+    record(
+      'User Meetings API',
+      'GET /api/meetings returns authenticated user real meetings from Supabase',
+      authMeetingsRes.status === 200 && hasUserAMeetings,
+      `Returned ${meetingsList.length} meetings for user A`
+    );
+
+    // Check meeting fields: title, upload date (created_at), and recording status
+    const sampleDbMeeting = meetingsList[0];
+    const hasRequiredFields =
+      !!sampleDbMeeting?.title &&
+      !!sampleDbMeeting?.created_at &&
+      sampleDbMeeting?.source === 'upload' &&
+      (sampleDbMeeting?.status === 'pending' || sampleDbMeeting?.status === 'uploaded');
+    record(
+      'Meeting Fields & Display',
+      'Meeting record contains title, upload date (created_at), and status',
+      hasRequiredFields,
+      `Title: "${sampleDbMeeting?.title}", Created: ${sampleDbMeeting?.created_at}, Status: ${sampleDbMeeting?.status}`
+    );
   } finally {
     console.log('\n========================================');
     console.log('TEARDOWN & CLEANUP');
