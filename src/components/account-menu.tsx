@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Coins } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/login/actions";
 
@@ -62,6 +62,13 @@ export function AccountMenu({ account }: { account: AccountDetails }) {
         <p className="break-all font-medium text-[#f3f6fc]">{email}</p>
         <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Current plan</span><span className="font-medium text-[#e8eef8]">{plan}</span></div>
         <div className="mt-1 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Pro Trial</span><span className={trialActive ? "font-medium text-[#7badff]" : "text-[#8e9bac]"}>{trialActive ? "Active" : "Ended"}</span></div>
+        <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+          <span className="text-[#8e9bac]">Credit balance</span>
+          <span className="flex items-center gap-1 font-semibold text-[#fbbf24]">
+            <Coins size={13} className="text-[#fbbf24]" />
+            <span>{account.credits ?? 0} credit{account.credits === 1 ? "" : "s"}</span>
+          </span>
+        </div>
       </div>
       <nav aria-label="Account links" className="py-1">
         {links.map(({ href, label }) => <Link key={href} href={href} onClick={() => setOpen(false)} className="block px-4 py-2 hover:bg-[#1a2433] hover:text-white focus-visible:bg-[#1a2433] focus-visible:text-white">{label}</Link>)}

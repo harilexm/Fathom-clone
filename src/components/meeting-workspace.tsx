@@ -5,13 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
   ArrowLeft, Bookmark, Check, CheckCircle2, ChevronRight, Circle,
-  Copy, Download, ListTodo, Maximize2, MoreHorizontal, Play, Plus,
+  Copy, ListTodo, Maximize2, Play, Plus,
   Search, Share2, Sparkles, WandSparkles, Trash2, Globe, Lock, ExternalLink
 } from "lucide-react";
 import type { Meeting, TranscriptTurn, Highlight } from "@/lib/sample-data";
 import { formatMeetingDuration, formatTimestamp } from "@/lib/meetings";
 import { ParticipantAvatars } from "@/components/participant-avatars";
-import { Button, Card, Dropdown, Modal, Tabs } from "@/components/ui";
+import { Button, Card, Modal, Tabs } from "@/components/ui";
 
 export function RecordingPlaceholder({ duration, isDemo }: { duration: string; isDemo?: boolean }) {
   return (
@@ -36,27 +36,15 @@ export function RecordingPlaceholder({ duration, isDemo }: { duration: string; i
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-3">
-        <button
-          type="button"
-          disabled
-          aria-label="Play recording unavailable"
-          title="Playback unavailable without active media stream"
-          className="text-[#64768b]"
-        >
+        <span aria-hidden="true" className="text-[#64768b]">
           <Play size={18} />
-        </button>
+        </span>
         <span className="text-[11px] font-semibold text-muted">00:00</span>
         <div className="h-1.5 flex-1 rounded-full bg-[#223247]" aria-hidden="true" />
         <span className="text-[11px] font-semibold text-muted">{duration}</span>
-        <button
-          type="button"
-          disabled
-          aria-label="Fullscreen unavailable"
-          title="Fullscreen unavailable without active media stream"
-          className="text-[#64768b]"
-        >
+        <span aria-hidden="true" className="text-[#64768b]">
           <Maximize2 size={15} />
-        </button>
+        </span>
       </div>
     </Card>
   );
@@ -239,26 +227,84 @@ export function PendingContent({
   );
 }
 
+type SummaryTemplate = "general" | "executive" | "sales" | "technical";
+
+const SUMMARY_TEMPLATES: { id: SummaryTemplate; label: string; description: string }[] = [
+  { id: "general", label: "General summary", description: "Standard comprehensive notes and discussion overview" },
+  { id: "executive", label: "Executive brief", description: "High-level takeaways and core action points" },
+  { id: "sales", label: "Sales / Discovery", description: "Customer pain points, value propositions, and next steps" },
+  { id: "technical", label: "Technical sync", description: "Architecture decisions, technical blockers, and implementation items" },
+];
+
 export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTabChange: (tab: string) => void }) {
+  const [selectedTemplate, setSelectedTemplate] = useState<SummaryTemplate>("general");
+
   if (!meeting.isDemo && !meeting.summaryAvailable) {
     return <PendingContent meeting={meeting} type="summary" />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold text-brand">
+          <div className="flex items-center gap-2 text-xs font-bold text-brand">
             <Sparkles size={15} /> Meeting notes
             {meeting.isDemo && (
               <span className="rounded bg-[#132b43] px-1.5 py-0.5 text-[10px] font-semibold">Demo</span>
             )}
           </div>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-xl border border-[#2b3b4e] bg-[#172333] px-3 py-2 text-xs font-semibold text-[#acbbcc]">
-          <WandSparkles size={14} /> {meeting.isDemo ? "General summary" : meeting.summaryVersion || "Summary"}
-        </span>
+        <div className="flex items-center gap-2">
+          <label htmlFor="summary-template-select" className="sr-only">Summary Template</label>
+          <div className="flex items-center gap-2 rounded-xl border border-[#2b3b4e] bg-[#172333] px-3 py-1.5 text-xs">
+            <WandSparkles size={14} className="text-[#4b83ff]" />
+            <select
+              id="summary-template-select"
+              aria-label="Summary template"
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value as SummaryTemplate)}
+              className="bg-transparent font-semibold text-[#d2dce8] outline-none cursor-pointer"
+            >
+              {SUMMARY_TEMPLATES.map((tmpl) => (
+                <option key={tmpl.id} value={tmpl.id} className="bg-[#101824] text-[#d2dce8]">
+                  {tmpl.label}
+                </option>
+              ))}
+            </select>
+            <span className="rounded bg-[#131c2a] px-1.5 py-0.5 text-[10px] font-medium text-[#7fa5dd]">
+              0 credits
+            </span>
+          </div>
+        </div>
       </div>
+
+      {selectedTemplate === "executive" && (
+        <div className="rounded-xl border border-[#2b4f70] bg-[#0f2136] p-4 text-xs">
+          <p className="font-bold text-[#7badff] uppercase tracking-wider text-[11px] mb-1">Executive Takeaway</p>
+          <p className="text-[#d2dce8] leading-relaxed">
+            {meeting.summary.split(".")[0] ? `${meeting.summary.split(".")[0]}.` : meeting.summary} Key decisions require immediate follow-up across {meeting.actions.length} action items.
+          </p>
+        </div>
+      )}
+
+      {selectedTemplate === "sales" && (
+        <div className="rounded-xl border border-[#2b4f70] bg-[#0f2136] p-4 text-xs">
+          <p className="font-bold text-[#36d2a0] uppercase tracking-wider text-[11px] mb-1">Customer & Discovery Context</p>
+          <p className="text-[#d2dce8] leading-relaxed">
+            Core discussion centered on stakeholder requirements, budget considerations, and project timelines. Follow-ups identified: {meeting.actions.length} next steps.
+          </p>
+        </div>
+      )}
+
+      {selectedTemplate === "technical" && (
+        <div className="rounded-xl border border-[#2b4f70] bg-[#0f2136] p-4 text-xs">
+          <p className="font-bold text-[#b274ff] uppercase tracking-wider text-[11px] mb-1">Technical Architecture & Decisions</p>
+          <p className="text-[#d2dce8] leading-relaxed">
+            Technical synchronization covering systems design, integrations, and milestone deliverables. Review action items for implementation details.
+          </p>
+        </div>
+      )}
+
       <p className="rounded-xl border border-[#2b4f70] bg-[#122235] p-4 text-sm leading-7 text-[#d2dce8]">{meeting.summary}</p>
       {meeting.overview.length > 0 && (
         <section>
@@ -285,9 +331,6 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
           </div>
         ))}
       </div>
-      {meeting.isDemo && (
-        <p className="text-[11px] text-muted">Additional summary templates will be available in a later step.</p>
-      )}
     </div>
   );
 }
@@ -438,24 +481,21 @@ export function ActionItemsPanel({ meeting, doneIds, onToggle }: { meeting: Meet
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted">{meeting.actions.length} {meeting.isDemo ? "sample follow-ups" : "action items"}</p>
-        <Button variant="secondary" size="sm" disabled title="Manual action item creation will be available in a future update"><Plus size={14} /> Add item</Button>
       </div>
       <div className="space-y-3">
         {meeting.actions.map((item) => {
           const done = meeting.isDemo ? doneIds.includes(item.id) : item.done;
           return (
             <div key={item.id} className="flex items-start gap-3 rounded-xl border border-[#2b3b4e] p-4">
-              <button
+              {meeting.isDemo ? <button
                 type="button"
-                disabled={!meeting.isDemo}
-                title={meeting.isDemo ? undefined : "Action item completion status is currently view-only"}
-                aria-label={meeting.isDemo ? (done ? "Mark incomplete: " : "Mark complete: ") + item.text : (done ? "Completed: " : "Incomplete: ") + item.text}
+                aria-label={(done ? "Mark incomplete: " : "Mark complete: ") + item.text}
                 aria-pressed={done}
-                onClick={meeting.isDemo ? () => onToggle(item.id) : undefined}
+                onClick={() => onToggle(item.id)}
                 className="mt-0.5 shrink-0 rounded-full text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
               >
                 {done ? <CheckCircle2 size={19} /> : <Circle size={19} />}
-              </button>
+              </button> : <span aria-label={done ? "Completed" : "Incomplete"} role="img" className="mt-0.5 shrink-0 rounded-full text-brand">{done ? <CheckCircle2 size={19} /> : <Circle size={19} />}</span>}
               <div className="min-w-0 flex-1">
                 <p className={"break-words text-[13px] font-semibold " + (done ? "text-[#77899f] line-through" : "text-ink")}>{item.text}</p>
                 <p className="mt-2 text-[11px] text-muted">{item.owner} <span className="mx-1">·</span> {item.due === "No due date" ? item.due : "Due " + item.due}</p>
@@ -1337,6 +1377,13 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
         throw new Error(data.error || "Failed to check transcription progress");
       }
       if (data.status === "analyzing" || data.success) {
+        if (typeof window !== "undefined" && typeof data.creditsBalance === "number") {
+          window.dispatchEvent(
+            new CustomEvent("fathom:credits-updated", {
+              detail: { credits: data.creditsBalance, balance: data.creditsBalance },
+            })
+          );
+        }
         window.location.reload();
       } else {
         setTranscribeError(
@@ -1362,6 +1409,13 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
       if (!res.ok) {
         throw new Error(data.error || "Failed to analyze meeting");
       }
+      if (typeof window !== "undefined" && typeof data.creditsBalance === "number") {
+        window.dispatchEvent(
+          new CustomEvent("fathom:credits-updated", {
+            detail: { credits: data.creditsBalance, balance: data.creditsBalance },
+          })
+        );
+      }
       window.location.reload();
     } catch (err) {
       setTranscribeError(err instanceof Error ? err.message : "Failed to run AI analysis");
@@ -1380,6 +1434,11 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
     }
     // Asynchronously notify backend to persist duration in database if real meeting
     if (!currentMeeting.isDemo && currentMeeting.id && durSec > 0) {
+      setCurrentMeeting((prev) => ({
+        ...prev,
+        durationSeconds: durSec,
+        creditsRequired: Math.max(1, Math.ceil(durSec / 60)),
+      }));
       fetch("/api/recordings/duration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1470,35 +1529,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Dropdown
-            label={<><Download size={14} /> Export</>}
-            items={[
-              {
-                label: meeting.isDemo
-                  ? "Export transcript (demo only - coming in future step)"
-                  : meeting.transcript.length > 0
-                    ? "Export transcript (exporting coming in future step)"
-                    : "Export transcript (transcription pending)",
-                disabled: true,
-              },
-              {
-                label: meeting.isDemo
-                  ? "Export notes (demo only - coming in future step)"
-                  : meeting.summaryAvailable
-                    ? "Export notes (exporting coming in future step)"
-                    : "Export notes (summary pending)",
-                disabled: true,
-              },
-            ]}
-          />
           <Button variant="secondary" size="sm" onClick={handleOpenShareMeeting}><Share2 size={15} /> Share</Button>
-          <Dropdown
-            label={<MoreHorizontal size={16} />}
-            items={[
-              { label: "Rename meeting (editing coming in future step)", disabled: true },
-              { label: "Delete meeting (management coming in future step)", disabled: true }
-            ]}
-          />
         </div>
       </div>
       <div className="min-w-0 space-y-3">

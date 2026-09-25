@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChartNoAxesColumnIncreasing, Folder, Play, Search, Settings, Sparkles, UsersRound, Video, Coins } from "lucide-react";
+import { ChartNoAxesColumnIncreasing, Play, Search, Settings, Sparkles, Coins } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AskFathomPanel } from "@/components/ask-fathom-panel";
 import { AccountMenu, type AccountDetails } from "@/components/account-menu";
 
 const tabs = [
   { href: "/my-calls", label: "My Calls", icon: Play },
-  { href: "/team-calls", label: "Team Calls", icon: UsersRound },
-  { href: "/playlists", label: "Playlists", icon: Folder },
   { href: "/insights", label: "Insights", icon: ChartNoAxesColumnIncreasing }
 ];
 
@@ -42,6 +40,51 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
     setMobileAskOpen(false);
     requestAnimationFrame(() => askButton.current?.focus());
   }, []);
+
+  const [credits, setCredits] = useState<number>(account.credits ?? 0);
+
+  useEffect(() => {
+    if (typeof account.credits === "number") {
+      setCredits(account.credits);
+    }
+  }, [account.credits]);
+
+  const refreshCredits = useCallback(async () => {
+    try {
+      const res = await fetch("/api/credits");
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.credits === "number") {
+          setCredits(data.credits);
+        }
+      }
+    } catch {
+      // Ignore network errors
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCredits();
+
+    const handleCreditsUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ credits?: number; balance?: number }>;
+      if (typeof customEvent.detail?.credits === "number") {
+        setCredits(customEvent.detail.credits);
+      } else if (typeof customEvent.detail?.balance === "number") {
+        setCredits(customEvent.detail.balance);
+      } else {
+        refreshCredits();
+      }
+    };
+
+    window.addEventListener("fathom:credits-updated", handleCreditsUpdated);
+    window.addEventListener("focus", refreshCredits);
+
+    return () => {
+      window.removeEventListener("fathom:credits-updated", handleCreditsUpdated);
+      window.removeEventListener("focus", refreshCredits);
+    };
+  }, [refreshCredits]);
 
   useEffect(() => { setMobileAskOpen(false); }, [pathname]);
   useEffect(() => {
@@ -90,16 +133,17 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
               <Settings size={20} />
               <span className="hidden sm:inline">Settings</span>
             </Link>
-            <button type="button" disabled title="Test calls will be available later" aria-label="Start Test Call unavailable in this preview" className="flex items-center gap-2 opacity-80 hover:text-white">
-              <Video size={20} />
-              <span className="hidden sm:inline">Start Test Call</span>
-            </button>
-            <span className="hidden cursor-default items-center gap-1.5 rounded-full bg-[#1e2a3a] px-3 py-1 text-[13px] font-semibold text-[#f3f6fc] sm:flex" title={`${account.credits ?? 0} credits available`}>
+            <span
+              id="credits-balance-display"
+              className="hidden cursor-default items-center gap-1.5 rounded-full bg-[#1e2a3a] px-3 py-1 text-[13px] font-semibold text-[#f3f6fc] sm:flex"
+              title={`${credits} credits available`}
+              data-credits={credits}
+            >
               <Coins size={16} className="text-[#fbbf24]" />
-              <span>{account.credits ?? 0}</span>
+              <span>{credits}</span>
             </span>
             <span aria-hidden="true" className="h-[24px] w-px bg-[#1e2a3a]" />
-            <AccountMenu account={account} />
+            <AccountMenu account={{ ...account, credits }} />
           </div>
         </div>
         <nav aria-label="Meeting navigation" className="flex h-[56px] items-stretch gap-8 overflow-x-auto px-6 lg:px-10">
