@@ -2,21 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AtSign,
   Bot,
-  ChartNoAxesColumnIncreasing,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
-  FileText,
-  Lightbulb,
-  Paperclip,
   RotateCcw,
   Send,
   Sparkles,
-  UsersRound,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { findMeeting } from "@/lib/sample-data";
@@ -49,17 +43,17 @@ interface ProcessedMeetingOption {
 }
 
 const libraryPrompts = [
-  { label: "Summarize my last 3 customer calls", icon: FileText, color: "text-[#b274ff]" },
-  { label: "What are key next steps from recent calls?", icon: UsersRound, color: "text-[#368dff]" },
-  { label: "Show recurring themes across my calls", icon: ChartNoAxesColumnIncreasing, color: "text-[#36d2a0]" },
-  { label: "Draft a follow-up email from recent calls", icon: Lightbulb, color: "text-[#ffab40]" },
+  "Summarize my last 3 customer calls",
+  "What are key next steps from recent calls?",
+  "Show recurring themes across my calls",
+  "Draft a follow-up email from recent calls",
 ];
 
 const meetingPrompts = [
-  { label: "Summarize this meeting", icon: FileText, color: "text-[#b274ff]" },
-  { label: "What are the next steps?", icon: UsersRound, color: "text-[#368dff]" },
-  { label: "What themes came up?", icon: ChartNoAxesColumnIncreasing, color: "text-[#36d2a0]" },
-  { label: "Draft a follow-up email", icon: Lightbulb, color: "text-[#ffab40]" },
+  "Summarize this meeting",
+  "What are the next steps?",
+  "What themes came up?",
+  "Draft a follow-up email",
 ];
 
 /**
@@ -530,12 +524,6 @@ export function AskFathomPanel({
   const isMeetingScope = selectedScope !== "my-calls";
   const prompts = isMeetingScope ? meetingPrompts : libraryPrompts;
 
-  // Selected meeting label
-  const selectedMeetingObj = processedMeetings.find((m) => m.id === selectedScope);
-  const scopeTitle = isMeetingScope
-    ? selectedMeetingObj?.title || currentMeetingTitle || "Current Meeting"
-    : "My Calls";
-
   return (
     <div className="flex h-full min-h-0 flex-col rounded-tl-xl border-l border-[#1a2433] bg-[#0c1119]">
       {/* Header */}
@@ -545,9 +533,6 @@ export function AskFathomPanel({
             <Sparkles size={14} strokeWidth={2.2} />
           </div>
           <h2 className="text-[14px] font-semibold text-[#f3f6fc]">Ask Fathom</h2>
-          <span className="rounded bg-[#131c2a] px-1.5 py-0.5 text-[10px] font-medium text-[#7fa5dd]">
-            0 credits
-          </span>
         </div>
         <div className="flex items-center gap-1">
           {currentMessages.length > 0 && (
@@ -574,7 +559,7 @@ export function AskFathomPanel({
       </div>
 
       {/* Scope Selector Bar */}
-      <div className="shrink-0 border-b border-[#151e2c] bg-[#090d14] px-4 py-2.5">
+      <div className="shrink-0 border-b border-[#151e2c] bg-[#090d14] px-4 py-2">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="fathom-scope-select" className="sr-only">
             Ask Fathom Scope
@@ -584,13 +569,13 @@ export function AskFathomPanel({
               id="fathom-scope-select"
               value={selectedScope}
               onChange={(e) => handleScopeChange(e.target.value)}
-              className="h-8 w-full appearance-none truncate rounded-md border border-[#1e2a3a] bg-[#101724] pl-3 pr-8 text-[12px] font-medium text-[#c0cce0] outline-none transition-colors hover:border-[#2d3e54] hover:text-[#f3f6fc] focus-visible:ring-1 focus-visible:ring-[#4b83ff]"
+              className="h-8 w-full appearance-none truncate rounded-md border border-[#1a2433] bg-[#0d131d] pl-3 pr-8 text-[12px] font-medium text-[#c0cce0] outline-none transition-colors hover:border-[#2a384c] hover:text-[#f3f6fc] focus-visible:ring-1 focus-visible:ring-[#4b83ff]"
             >
-              <option value="my-calls">My Calls (Search all calls)</option>
+              <option value="my-calls">My Calls</option>
               {/* If on a meeting page, show current meeting first */}
               {routeMeetingId && (
                 <option value={routeMeetingId}>
-                  Meeting: {currentMeetingTitle || "Current Meeting"}
+                  {currentMeetingTitle || "Current Meeting"}
                 </option>
               )}
               {/* Other processed meetings */}
@@ -598,7 +583,7 @@ export function AskFathomPanel({
                 .filter((m) => m.id !== routeMeetingId)
                 .map((m) => (
                   <option key={m.id} value={m.id}>
-                    Meeting: {m.title}
+                    {m.title}
                   </option>
                 ))}
             </select>
@@ -609,36 +594,27 @@ export function AskFathomPanel({
             />
           </div>
         </div>
-        <p className="mt-1 text-[11px] text-[#71849d] truncate">
-          {isMeetingScope
-            ? `Scoped strictly to "${scopeTitle}"`
-            : "Searching relevant context across your processed calls"}
-        </p>
       </div>
 
       {/* Chat Messages Body */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
         {currentMessages.length === 0 ? (
           /* Empty State: Show suggested prompt chips */
-          <div className="mt-auto flex flex-col items-end space-y-2 pb-2">
+          <div className="mt-auto flex flex-col items-end space-y-1.5 pb-2">
             <p className="w-full text-left text-[11px] font-medium uppercase tracking-wider text-[#637792]">
               Suggested Prompts
             </p>
-            {prompts.map((prompt) => {
-              const Icon = prompt.icon;
-              return (
-                <button
-                  key={prompt.label}
-                  type="button"
-                  onClick={() => handleSubmitQuestion(prompt.label)}
-                  disabled={isStreaming}
-                  className="group flex w-fit max-w-[95%] items-center gap-2 rounded-[14px] border border-[#1e2a3a] bg-[#0f1520] px-3.5 py-2 text-left text-[12.5px] font-medium text-[#d9e3f2] transition-colors hover:border-[#33465e] hover:bg-[#141d2c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4b83ff]"
-                >
-                  <Icon size={14} className={prompt.color + " shrink-0"} />
-                  <span>{prompt.label}</span>
-                </button>
-              );
-            })}
+            {prompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => handleSubmitQuestion(prompt)}
+                disabled={isStreaming}
+                className="w-fit max-w-[95%] rounded-lg border border-[#1b2535] bg-[#0d131d] px-3 py-1.5 text-left text-[12px] text-[#c0cde0] transition-colors hover:border-[#2a3a50] hover:bg-[#121a28] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4b83ff]"
+              >
+                {prompt}
+              </button>
+            ))}
           </div>
         ) : (
           /* Conversation Thread */
@@ -799,14 +775,12 @@ export function AskFathomPanel({
             rows={2}
             className="min-h-0 w-full flex-1 resize-none bg-transparent text-[13px] leading-tight text-[#f1f5fb] placeholder:text-[#8b9db5] focus:outline-none disabled:opacity-50"
           />
-          <div className="flex items-center gap-3 text-[#bdd0eb]">
-            <Paperclip size={16} aria-hidden="true" className="opacity-60" />
-            <AtSign size={16} aria-hidden="true" className="opacity-60" />
+          <div className="flex items-center justify-end text-[#bdd0eb]">
             <button
               type="submit"
               disabled={!question.trim() || isStreaming}
               aria-label="Send question"
-              className="ml-auto flex h-8 w-8 items-center justify-center rounded border border-[#477bff] bg-[#205cf0] text-white hover:bg-[#3470ff] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6794ff]"
+              className="flex h-8 w-8 items-center justify-center rounded border border-[#477bff] bg-[#205cf0] text-white hover:bg-[#3470ff] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6794ff]"
             >
               {isStreaming ? (
                 <Sparkles size={13} className="animate-spin" />
