@@ -10,7 +10,7 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <div className="min-h-screen bg-[#06080d] text-[#f1f5f9] flex flex-col antialiased">
+    <div className="min-h-screen bg-[#06080d] text-[#f1f5f9] flex flex-col antialiased overflow-x-hidden">
       {/* Top Navigation */}
       <header className="sticky top-0 z-40 border-b border-[#131b26] bg-[#06080d]/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -56,14 +56,22 @@ export default async function HomePage() {
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="mx-auto max-w-4xl px-4 pt-20 pb-16 sm:px-6 sm:pt-28 sm:pb-24 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-[#60a5fa] mb-4">
-            Meeting Intelligence Platform
-          </p>
+        <section className="relative isolate mx-auto max-w-5xl px-4 pt-20 pb-16 sm:px-6 sm:pt-28 sm:pb-24 text-center">
+          {/* Ambient whitish background glow with blurry edges (matching reference design) */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-24 sm:top-28 -translate-x-1/2 -translate-y-1/2 -z-10 rounded-full"
+            style={{
+              width: "min(92vw, 860px)",
+              height: "340px",
+              background: "radial-gradient(ellipse 65% 55% at 50% 50%, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.09) 40%, rgba(255, 255, 255, 0.02) 65%, transparent 78%)",
+              filter: "blur(60px)",
+            }}
+          />
 
-          <h1 className="text-3xl font-bold tracking-tight text-[#f1f5f9] sm:text-5xl sm:leading-[1.18]">
-            Automated meeting notes and transcripts,<br className="hidden sm:inline" />
-            built for productive teams.
+          <h1 className="mx-auto max-w-5xl text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-[45px] lg:text-5xl sm:leading-[1.18]">
+            <span className="block">Automated meeting notes and transcripts,</span>
+            <span className="block text-[#f1f5f9]">built for productive teams.</span>
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-[#94a3b8] sm:text-base">
