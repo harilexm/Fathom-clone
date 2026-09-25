@@ -1,9 +1,14 @@
 import Link from "next/link";
 
 const questions = [
-  { question: "How can I sign in?", answer: "Use email and password, Google, or the Demo guest option on the sign-in page." },
-  { question: "Where can I see my plan and trial?", answer: "Open Account in the top-right corner to see your current plan and Pro Trial status." },
-  { question: "Can I change plans?", answer: "The Pricing page is a preview. Billing and plan changes are not available yet." },
+  { question: "How can I sign in?", answer: "Use email and password, Google, or Demo guest on the sign-in page. A Demo guest is an anonymous Supabase account; signing out may make that account inaccessible." },
+  { question: "How do I add a meeting?", answer: "Upload an audio or video recording from My Calls. Processing requires enough credits, and your recording may take time to transcribe and analyze." },
+  { question: "When are credits used?", answer: "New accounts start with 50 credits. Processing costs one credit per started minute. Credits are deducted only after successful processing; failed processing uses zero credits. Ask Fathom text questions use zero credits. Top-ups are not available yet." },
+  { question: "Can I connect Google Calendar?", answer: "Yes, if Calendar integration is configured. Open Settings to connect, reconnect, or disconnect read-only Google Calendar access. Connecting Calendar does not automatically record meetings." },
+  { question: "Who can see my meetings?", answer: "Your meeting library is private to your account. You can explicitly create or revoke a public link for a meeting or highlight. Team-wide sharing is not available." },
+  { question: "What do the summary and highlight preferences do?", answer: "They affect future AI analyses. They do not rewrite existing results. Suggested highlights remain separate from highlights you create yourself." },
+  { question: "What happens after the 14-day Pro trial?", answer: "Paid Pro and Max plans are planned but checkout and automatic billing are not connected. Existing preview features remain subject to available credits." },
+  { question: "Can I delete my account?", answer: "Self-service account and recording deletion is not available in this test project. Signing out does not delete stored data." },
 ];
 
 export default function FAQsPage() {
