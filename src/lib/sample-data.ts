@@ -1,7 +1,7 @@
 // Temporary, local UI fixtures. These shapes are designed to be replaced by owned meeting records later.
-export type TranscriptTurn = { id: string; speaker: string; initials: string; color: string; time: string; text: string };
+export type TranscriptTurn = { id: string; speaker: string; initials: string; color: string; time: string; text: string; startTimeSec?: number };
 export type ActionItem = { id: string; text: string; owner: string; due: string; done: boolean };
-export type Highlight = { id: string; title: string; time: string; kind: string };
+export type Highlight = { id: string; title: string; time: string; kind: string; startTimeSec?: number };
 export type Meeting = {
   id: string;
   title: string;

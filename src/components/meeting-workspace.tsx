@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, forwardRef, useImperativeHandle } from "react";
 import {
   ArrowLeft, Bookmark, Check, CheckCircle2, ChevronRight, Circle,
   Copy, Download, ListTodo, Maximize2, MoreHorizontal, Play, Plus,
@@ -61,15 +61,22 @@ export function RecordingPlaceholder({ duration, isDemo }: { duration: string; i
   );
 }
 
-function RecordingPlayer({
-  playbackUrl,
-  mimeType,
-  onDurationDetected,
-}: {
+const RecordingPlayer = forwardRef<HTMLMediaElement, {
   playbackUrl: string;
   mimeType?: string;
   onDurationDetected?: (durationSec: number) => void;
-}) {
+}>(function RecordingPlayer({ playbackUrl, mimeType, onDurationDetected }, ref) {
+  const internalAudioRef = useRef<HTMLAudioElement>(null);
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Expose the active media element to the parent via forwarded ref
+  useImperativeHandle(ref, () => {
+    if (mimeType?.startsWith("audio/")) {
+      return internalAudioRef.current as HTMLMediaElement;
+    }
+    return internalVideoRef.current as HTMLMediaElement;
+  });
+
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLMediaElement>) => {
     const el = e.currentTarget;
     const dur = el.duration;
@@ -93,6 +100,7 @@ function RecordingPlayer({
       {mimeType?.startsWith("audio/") ? (
         <div className="flex min-h-[180px] items-center px-4">
           <audio
+            ref={internalAudioRef}
             aria-label="Meeting recording"
             controls
             preload="metadata"
@@ -104,6 +112,7 @@ function RecordingPlayer({
         </div>
       ) : (
         <video
+          ref={internalVideoRef}
           aria-label="Meeting recording"
           controls
           preload="metadata"
@@ -115,7 +124,7 @@ function RecordingPlayer({
       )}
     </Card>
   );
-}
+});
 
 export function PendingContent({
   meeting,
@@ -282,7 +291,7 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
   );
 }
 
-export function TranscriptPanel({ meeting }: { meeting: Meeting }) {
+export function TranscriptPanel({ meeting, onSeek }: { meeting: Meeting; onSeek?: (timeSec: number) => void }) {
   const turns: TranscriptTurn[] = meeting.transcript;
   const [query, setQuery] = useState("");
   const [speaker, setSpeaker] = useState("all");
@@ -340,7 +349,19 @@ export function TranscriptPanel({ meeting }: { meeting: Meeting }) {
               <div className="min-w-0">
                 <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className="text-xs font-bold">{turn.speaker}</span>
-                  <span className="whitespace-nowrap text-[11px] text-muted">{turn.time}</span>
+                  {onSeek && turn.startTimeSec !== undefined ? (
+                    <button
+                      type="button"
+                      onClick={() => onSeek(turn.startTimeSec!)}
+                      className="whitespace-nowrap text-[11px] font-semibold text-brand/70 transition hover:text-brand hover:underline"
+                      aria-label={`Seek to ${turn.time}`}
+                      title={`Jump to ${turn.time}`}
+                    >
+                      {turn.time}
+                    </button>
+                  ) : (
+                    <span className="whitespace-nowrap text-[11px] text-muted">{turn.time}</span>
+                  )}
                 </div>
                 <p className="break-words text-[13px] leading-6 text-[#acbbcc]">{turn.text}</p>
               </div>
@@ -399,7 +420,7 @@ export function ActionItemsPanel({ meeting, doneIds, onToggle }: { meeting: Meet
   );
 }
 
-export function HighlightsPanel({ meeting }: { meeting: Meeting }) {
+export function HighlightsPanel({ meeting, onSeek }: { meeting: Meeting; onSeek?: (timeSec: number) => void }) {
   if (meeting.highlights.length === 0) {
     return <PendingContent meeting={meeting} type="highlights" />;
   }
@@ -415,7 +436,19 @@ export function HighlightsPanel({ meeting }: { meeting: Meeting }) {
           <div key={item.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-[#2b3b4e] p-4 sm:gap-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#132b43] text-brand"><Bookmark size={17} /></span>
             <div className="min-w-0 flex-1"><p className="break-words text-[13px] font-bold">{item.title}</p><p className="mt-1 text-[11px] text-muted">{item.kind}</p></div>
-            <span className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-[#acbbcc]">{item.time}</span>
+            {onSeek && item.startTimeSec !== undefined ? (
+              <button
+                type="button"
+                onClick={() => onSeek(item.startTimeSec!)}
+                className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-brand/70 transition hover:bg-[#2e425a] hover:text-brand"
+                aria-label={`Seek to ${item.time}`}
+                title={`Jump to ${item.time}`}
+              >
+                {item.time}
+              </button>
+            ) : (
+              <span className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-[#acbbcc]">{item.time}</span>
+            )}
           </div>
         ))}
       </div>
@@ -545,6 +578,16 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
   const [isCheckingProgress, setIsCheckingProgress] = useState(false);
   const [isAnalyzingLoading, setIsAnalyzingLoading] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const mediaRef = useRef<HTMLMediaElement>(null);
+
+  function seekTo(timeSec: number) {
+    const el = mediaRef.current;
+    if (!el) return;
+    el.currentTime = timeSec;
+    el.play().catch(() => {});
+    // Scroll the player into view
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 
   async function handleStartTranscription() {
     if (isTranscribingLoading || currentMeeting.isDemo) return;
@@ -744,7 +787,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
       </div>
       <div className="min-w-0 space-y-3">
           {playbackUrl ? (
-            <RecordingPlayer playbackUrl={playbackUrl} mimeType={recordingMimeType} onDurationDetected={handleDurationDetected} />
+            <RecordingPlayer ref={mediaRef} playbackUrl={playbackUrl} mimeType={recordingMimeType} onDurationDetected={handleDurationDetected} />
           ) : (
             <RecordingPlaceholder duration={meetingDuration} isDemo={meeting.isDemo} />
           )}
@@ -753,15 +796,15 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
               <Tabs idBase="meeting-content" label="Meeting content" value={tab} onChange={setTab} items={[
                 { id: "summary", label: "Summary" },
                 { id: "transcript", label: "Transcript" },
-                { id: "actions", label: "Action items", count: meeting.actions.length > 0 ? meeting.actions.length : undefined },
-                { id: "highlights", label: "Highlights", count: meeting.highlights.length > 0 ? meeting.highlights.length : undefined }
+                { id: "actions", label: "Action items", count: currentMeeting.actions.length > 0 ? currentMeeting.actions.length : undefined },
+                { id: "highlights", label: "Highlights", count: currentMeeting.highlights.length > 0 ? currentMeeting.highlights.length : undefined }
               ]} />
             </div>
             <div role="tabpanel" id="meeting-content-panel" aria-labelledby={"meeting-content-" + tab} className="p-4 sm:p-5">
               {tab === "summary" && <SummaryPanel meeting={currentMeeting} onTabChange={setTab} />}
-              {tab === "transcript" && <TranscriptPanel meeting={currentMeeting} />}
+              {tab === "transcript" && <TranscriptPanel meeting={currentMeeting} onSeek={playbackUrl ? seekTo : undefined} />}
               {tab === "actions" && <ActionItemsPanel meeting={currentMeeting} doneIds={doneIds} onToggle={toggleDone} />}
-              {tab === "highlights" && <HighlightsPanel meeting={currentMeeting} />}
+              {tab === "highlights" && <HighlightsPanel meeting={currentMeeting} onSeek={playbackUrl ? seekTo : undefined} />}
             </div>
           </Card>
       </div>

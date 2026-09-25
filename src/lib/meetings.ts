@@ -1,5 +1,18 @@
 import type { Meeting } from "@/lib/sample-data";
 
+const SPEAKER_COLORS = [
+  "bg-[#283d61] text-[#c3d5ff]",
+  "bg-[#214656] text-[#b8e7f2]",
+  "bg-[#4e3b2d] text-[#f7d5a7]",
+  "bg-[#50372e] text-[#f4c6ae]",
+  "bg-[#263f67] text-[#c2d8ff]",
+  "bg-[#4e3243] text-[#f3c3d7]",
+  "bg-[#214c4b] text-[#b4ebe4]",
+  "bg-[#39482c] text-[#d9eab5]",
+  "bg-[#4a3257] text-[#dbb8f0]",
+  "bg-[#3b4a2c] text-[#c8e89e]",
+];
+
 export interface DbMeetingRecord {
   id: string;
   user_id: string;
@@ -174,17 +187,32 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   const overview = Array.isArray(summaryVersion?.overview)
     ? summaryVersion.overview.filter((point): point is string => typeof point === "string" && point.trim().length > 0)
     : [];
+  // Build a speaker → color mapping from DB data or palette
+  const speakerColorMap = new Map<string, string>();
+  let colorIndex = 0;
+  for (const seg of (dbMeeting.transcript_segments || [])) {
+    const name = seg.speaker || "Speaker";
+    if (!speakerColorMap.has(name)) {
+      speakerColorMap.set(name, SPEAKER_COLORS[colorIndex % SPEAKER_COLORS.length]);
+      colorIndex++;
+    }
+  }
+
   const transcript = (dbMeeting.transcript_segments || [])
     .slice()
     .sort((a, b) => a.sequence - b.sequence || a.start_time - b.start_time)
-    .map((turn) => ({
-      id: turn.id,
-      speaker: turn.speaker || "Speaker",
-      initials: turn.speaker_initials || (turn.speaker || "Speaker").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
-      color: "bg-[#214656] text-[#b8e7f2]",
-      time: formatTimestamp(turn.start_time),
-      text: turn.text,
-    }));
+    .map((turn) => {
+      const speakerName = turn.speaker || "Speaker";
+      return {
+        id: turn.id,
+        speaker: speakerName,
+        initials: turn.speaker_initials || speakerName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+        color: speakerColorMap.get(speakerName) || SPEAKER_COLORS[0],
+        time: formatTimestamp(turn.start_time),
+        text: turn.text,
+        startTimeSec: Number(turn.start_time) || 0,
+      };
+    });
   const actions = (dbMeeting.action_items || []).map((item) => ({
     id: item.id,
     text: item.task || item.text || "Untitled action",
@@ -200,6 +228,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
       title: item.title,
       time: formatTimestamp(item.start_timestamp || item.start_time),
       kind: item.kind || "Highlight",
+      startTimeSec: Number(item.start_timestamp || item.start_time) || 0,
     }));
 
   const activeShareLink = (dbMeeting.share_links || []).find(
