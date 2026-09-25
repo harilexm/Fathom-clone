@@ -23,13 +23,13 @@ interface HighlightClipPlayerProps {
 
 export function HighlightClipPlayer({
   playbackUrl,
-  mimeType = "video/mp4",
   startTimeSec,
   endTimeSec,
-  clipTitle,
 }: HighlightClipPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
+  const hasCuedRef = useRef(false);
 
   const clipDuration = Math.max(1, Math.round(endTimeSec - startTimeSec));
   const [isPlaying, setIsPlaying] = useState(false);
@@ -42,86 +42,128 @@ export function HighlightClipPlayer({
   const [showControls, setShowControls] = useState(true);
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Cue video to startTimeSec as soon as metadata is available
-  const cueToStart = useCallback(() => {
+  // Safe pause that respects in-flight play promises to avoid AbortError
+  const safePause = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    if (playPromiseRef.current) {
+      playPromiseRef.current
+        .then(() => {
+          video.pause();
+          setIsPlaying(false);
+        })
+        .catch(() => {
+          video.pause();
+          setIsPlaying(false);
+        });
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  }, []);
+
+  // Safe play that queues properly and catches AbortError
+  const safePlay = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Reposition to start if past clip end or before clip start
+    if (video.currentTime >= endTimeSec - 0.2 || video.currentTime < startTimeSec - 0.5) {
+      video.currentTime = startTimeSec;
+      setClipCurrentTime(0);
+    }
+
     try {
-      if (Math.abs(video.currentTime - startTimeSec) > 0.3) {
-        video.currentTime = startTimeSec;
+      const promise = video.play();
+      playPromiseRef.current = promise;
+      await promise;
+      setIsPlaying(true);
+      setIsBuffering(false);
+    } catch (err: unknown) {
+      const isAbort =
+        err instanceof Error &&
+        (err.name === "AbortError" || err.message?.includes("interrupted by a call to pause"));
+      if (!isAbort) {
+        console.error("Playback error:", err);
       }
-    } catch {}
+    } finally {
+      playPromiseRef.current = null;
+    }
+  }, [startTimeSec, endTimeSec]);
+
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!video.paused && isPlaying) {
+      safePause();
+    } else {
+      safePlay();
+    }
+  }, [isPlaying, safePause, safePlay]);
+
+  // Initial cue to startTimeSec on metadata load
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!hasCuedRef.current) {
+      hasCuedRef.current = true;
+      try {
+        video.currentTime = startTimeSec;
+      } catch {}
+    }
     setIsLoaded(true);
   }, [startTimeSec]);
 
+  // Reset cue state when URL or startTime changes
   useEffect(() => {
+    hasCuedRef.current = false;
     const video = videoRef.current;
-    if (!video) return;
-
-    if (video.readyState >= 1) {
-      cueToStart();
+    if (video && video.readyState >= 1) {
+      handleLoadedMetadata();
     }
-  }, [cueToStart, playbackUrl]);
+  }, [playbackUrl, startTimeSec, handleLoadedMetadata]);
 
-  // Handle timeupdate and enforce clip boundary
+  // Handle timeupdate strictly to update timer and enforce end boundary
   const handleTimeUpdate = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || video.seeking) return;
 
     const current = video.currentTime;
 
     // Enforce clip end boundary: pause and reset to start
     if (current >= endTimeSec) {
-      video.pause();
-      setIsPlaying(false);
+      safePause();
       video.currentTime = startTimeSec;
       setClipCurrentTime(0);
       return;
     }
 
-    // Clamp before start boundary
-    if (current < startTimeSec - 0.5) {
-      video.currentTime = startTimeSec;
-      setClipCurrentTime(0);
-      return;
+    if (current >= startTimeSec) {
+      const elapsed = Math.max(0, Math.min(clipDuration, current - startTimeSec));
+      setClipCurrentTime(elapsed);
     }
-
-    const elapsed = Math.max(0, Math.min(clipDuration, current - startTimeSec));
-    setClipCurrentTime(elapsed);
   };
 
-  const togglePlay = () => {
+  const handleSeeked = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isPlaying) {
-      video.pause();
-      setIsPlaying(false);
-    } else {
-      // If at or past end, or before start, restart from clip start
-      if (video.currentTime >= endTimeSec - 0.1 || video.currentTime < startTimeSec - 0.5) {
-        video.currentTime = startTimeSec;
-        setClipCurrentTime(0);
-      }
-      video
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => {
-          console.error("Playback error:", err);
-        });
-    }
+    const current = video.currentTime;
+    const elapsed = Math.max(0, Math.min(clipDuration, current - startTimeSec));
+    setClipCurrentTime(elapsed);
+    setIsBuffering(false);
   };
 
   const handleReplay = () => {
     const video = videoRef.current;
     if (!video) return;
+
     video.currentTime = startTimeSec;
     setClipCurrentTime(0);
-    video
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => {});
+    safePlay();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,9 +231,17 @@ export function HighlightClipPlayer({
         src={playbackUrl}
         playsInline
         preload="auto"
-        onLoadedMetadata={cueToStart}
-        onCanPlay={cueToStart}
-        onLoadedData={() => setIsLoaded(true)}
+        onLoadedMetadata={handleLoadedMetadata}
+        onLoadedData={() => {
+          setIsLoaded(true);
+          setIsBuffering(false);
+        }}
+        onCanPlay={() => {
+          setIsLoaded(true);
+          setIsBuffering(false);
+        }}
+        onSeeking={() => setIsBuffering(true)}
+        onSeeked={handleSeeked}
         onWaiting={() => setIsBuffering(true)}
         onPlaying={() => {
           setIsBuffering(false);
@@ -200,7 +250,10 @@ export function HighlightClipPlayer({
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onClick={togglePlay}
+        onClick={(e) => {
+          e.stopPropagation();
+          togglePlay();
+        }}
         className="h-full w-full object-contain cursor-pointer"
       >
         Your browser does not support HTML5 video playback.
@@ -228,7 +281,11 @@ export function HighlightClipPlayer({
       {/* Center Big Play / Replay / Buffering Overlay Button */}
       {(!isPlaying || isBuffering) && (
         <div
-          onClick={togglePlay}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              togglePlay();
+            }
+          }}
           className="absolute inset-0 flex items-center justify-center bg-black/25 backdrop-blur-[2px] transition-all cursor-pointer"
         >
           {isBuffering && isPlaying ? (
@@ -238,6 +295,10 @@ export function HighlightClipPlayer({
           ) : (
             <button
               type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePlay();
+              }}
               className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-white shadow-xl shadow-brand/35 transition-transform duration-200 hover:scale-110 active:scale-95 border border-white/20"
               aria-label={isPlaying ? "Pause highlight" : "Play highlight"}
             >
@@ -282,7 +343,10 @@ export function HighlightClipPlayer({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={togglePlay}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePlay();
+              }}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
               title={isPlaying ? "Pause (Space)" : "Play (Space)"}
               aria-label={isPlaying ? "Pause highlight" : "Play highlight"}
@@ -292,7 +356,10 @@ export function HighlightClipPlayer({
 
             <button
               type="button"
-              onClick={handleReplay}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReplay();
+              }}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
               title="Replay highlight from start"
               aria-label="Replay highlight"
@@ -316,7 +383,10 @@ export function HighlightClipPlayer({
             <div className="flex items-center gap-1.5 group/volume">
               <button
                 type="button"
-                onClick={toggleMute}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }}
                 className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition"
                 aria-label={isMuted ? "Unmute" : "Mute"}
               >
@@ -337,7 +407,10 @@ export function HighlightClipPlayer({
             {/* Fullscreen */}
             <button
               type="button"
-              onClick={toggleFullscreen}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
               className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition"
               title="Fullscreen"
               aria-label="Toggle fullscreen"
