@@ -163,7 +163,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   const durationText = formatMeetingDuration(durationSec);
 
   // Status mapping
-  const rawStatus = latestRecording?.status || dbMeeting.status || "uploaded";
+  const rawStatus = dbMeeting.status || latestRecording?.status || "uploaded";
   let statusText = "Uploaded";
   const lowerStatus = rawStatus.toLowerCase();
   if (lowerStatus === "ready") statusText = "Ready";
