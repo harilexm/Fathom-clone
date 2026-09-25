@@ -5,7 +5,7 @@ import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "re
 import {
   ArrowLeft, Bookmark, Check, CheckCircle2, ChevronRight, Circle,
   Copy, Download, ListTodo, Maximize2, MoreHorizontal, Play, Plus,
-  Search, Share2, Sparkles, WandSparkles, Trash2
+  Search, Share2, Sparkles, WandSparkles, Trash2, Globe, Lock, ExternalLink
 } from "lucide-react";
 import type { Meeting, TranscriptTurn, Highlight } from "@/lib/sample-data";
 import { formatMeetingDuration, formatTimestamp } from "@/lib/meetings";
@@ -629,11 +629,13 @@ export function HighlightsPanel({
   onSeek,
   onOpenCreate,
   onDeleteHighlight,
+  onShareHighlight,
 }: {
   meeting: Meeting;
   onSeek?: (timeSec: number) => void;
   onOpenCreate?: () => void;
   onDeleteHighlight?: (id: string) => void;
+  onShareHighlight?: (highlight: Highlight) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "user" | "ai">("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -707,6 +709,18 @@ export function HighlightsPanel({
             </button>
           ) : (
             <span className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-[#acbbcc]">{item.time}</span>
+          )}
+
+          {onShareHighlight && !meeting.isDemo && (
+            <button
+              type="button"
+              onClick={() => onShareHighlight(item)}
+              className="rounded-lg p-1.5 text-muted transition hover:bg-[#203043] hover:text-brand"
+              title="Share this highlight"
+              aria-label={`Share highlight: ${item.title}`}
+            >
+              <Share2 size={14} />
+            </button>
           )}
 
           {isUser && onDeleteHighlight && (
@@ -851,24 +865,80 @@ export function HighlightsPanel({
   );
 }
 
-export function SharePreviewModal({
+export function ShareModal({
   meeting,
   open,
   onClose,
+  initialHighlight,
+  onShareUpdated,
 }: {
   meeting: Meeting;
   open: boolean;
   onClose: () => void;
+  initialHighlight?: Highlight | null;
+  onShareUpdated?: (token?: string, highlightId?: string | null) => void;
 }) {
   const isDemo = Boolean(meeting.isDemo);
-  const shareToken = meeting.shareToken;
+  const [selectedHighlightId, setSelectedHighlightId] = useState<string | null>(initialHighlight?.id || null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedHighlightId(initialHighlight?.id || null);
+    setCopyState("idle");
+    setErrorMessage(null);
+  }, [initialHighlight, open]);
+
+  const currentHighlight = meeting.highlights.find((h) => h.id === selectedHighlightId);
+  const activeLink = (meeting.shareLinks || []).find((l) => {
+    if (selectedHighlightId) {
+      return l.is_active && l.highlightId === selectedHighlightId;
+    } else {
+      return l.is_active && !l.highlightId;
+    }
+  });
+
+  const isAnyone = Boolean(activeLink?.token || (!selectedHighlightId && meeting.shareToken));
+  const activeToken = activeLink?.token || (!selectedHighlightId ? meeting.shareToken : undefined);
+
   const previewPath = isDemo
     ? `/share/sample-${meeting.id}`
-    : shareToken
-      ? `/share/${shareToken}`
+    : activeToken
+      ? `/share/${activeToken}`
       : undefined;
 
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  async function handleToggleAccess(newAccess: "anyone" | "only_me") {
+    if (isDemo) return;
+    setIsUpdating(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch(`/api/meetings/${meeting.id}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access: newAccess,
+          highlightId: selectedHighlightId || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update share settings");
+      }
+
+      if (newAccess === "anyone") {
+        onShareUpdated?.(data.token, selectedHighlightId);
+      } else {
+        onShareUpdated?.(undefined, selectedHighlightId);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error updating share access";
+      setErrorMessage(msg);
+    } finally {
+      setIsUpdating(false);
+    }
+  }
 
   async function copyShareLink() {
     if (!previewPath) return;
@@ -881,9 +951,15 @@ export function SharePreviewModal({
     }
   }
 
+  const modalTitle = isDemo
+    ? "Share demo meeting"
+    : selectedHighlightId
+      ? `Share highlight: ${currentHighlight?.title || "Selected moment"}`
+      : "Share meeting";
+
   return (
     <Modal
-      title={isDemo ? "Share demo meeting" : "Share meeting"}
+      title={modalTitle}
       open={open}
       onClose={onClose}
       footer={<Button variant="secondary" onClick={onClose}>Done</Button>}
@@ -905,7 +981,7 @@ export function SharePreviewModal({
             {copyState === "copied" ? <Check size={15} className="text-[#6cd3a5]" /> : <Copy size={15} />}
           </button>
           <p role="status" className="mt-2 min-h-4 text-[11px] text-muted">
-            {copyState === "copied" ? "Preview link copied." : copyState === "failed" ? "Copy failed. Open the preview page instead." : ""}
+            {copyState === "copied" ? "Preview link copied." : copyState === "failed" ? "Copy failed." : ""}
           </p>
           <Link
             href={previewPath!}
@@ -915,59 +991,206 @@ export function SharePreviewModal({
             Open preview page <ChevronRight size={13} />
           </Link>
         </>
-      ) : shareToken ? (
-        <>
-          <div className="rounded-xl bg-[#132b43] p-4 text-sm leading-6 text-[#d2dce8]">
-            <p className="font-bold">Active share link</p>
-            <p className="mt-1">
-              Anyone with this link can view this meeting&apos;s summary and transcript.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={copyShareLink}
-            className="mt-4 flex w-full items-center justify-between rounded-xl border border-[#2b3b4e] px-3 py-2.5 text-left text-xs text-muted"
-          >
-            <span className="truncate">{previewPath}</span>
-            {copyState === "copied" ? <Check size={15} className="text-[#6cd3a5]" /> : <Copy size={15} />}
-          </button>
-          <p role="status" className="mt-2 min-h-4 text-[11px] text-muted">
-            {copyState === "copied" ? "Share link copied." : copyState === "failed" ? "Copy failed." : ""}
-          </p>
-          <Link
-            href={previewPath!}
-            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand"
-            onClick={onClose}
-          >
-            Open shared page <ChevronRight size={13} />
-          </Link>
-        </>
       ) : (
-        <>
-          <div className="rounded-xl border border-[#2b4f70] bg-[#122235] p-4 text-sm leading-6 text-[#d2dce8]">
-            <div className="flex items-center gap-2 font-bold text-white">
-              <span>Private upload</span>
-              <span className="rounded bg-[#1a334d] px-2 py-0.5 text-[10px] uppercase font-semibold text-brand">Owner only</span>
+        <div className="space-y-4">
+          {/* Target Selector (Whole Meeting vs Highlights) */}
+          {meeting.highlights && meeting.highlights.length > 0 && (
+            <div className="rounded-xl border border-[#23354b] bg-[#0c1421] p-3 text-xs">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
+                Share Target
+              </label>
+              <select
+                value={selectedHighlightId || "meeting"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedHighlightId(val === "meeting" ? null : val);
+                  setCopyState("idle");
+                  setErrorMessage(null);
+                }}
+                className="w-full rounded-lg border border-[#2b3d54] bg-[#121c2a] px-3 py-2 text-xs font-semibold text-white focus:border-brand focus:outline-none"
+              >
+                <option value="meeting">Entire Meeting ({meeting.title})</option>
+                <optgroup label="Highlights">
+                  {meeting.highlights.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.time} – {h.title}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
             </div>
-            <p className="mt-2 text-xs leading-5 text-[#bdddf8]">
-              This meeting recording is private to your account. Public link sharing and external access permissions are not enabled for this upload.
-            </p>
+          )}
+
+          {/* Access Control Options: Anyone with link vs Only me */}
+          <div className="rounded-xl border border-[#23354b] bg-[#0c1421] p-3.5 text-xs space-y-3">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted">
+              Access permissions
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => !isAnyone && handleToggleAccess("anyone")}
+                className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition ${
+                  isAnyone
+                    ? "border-brand bg-brand/10 text-white"
+                    : "border-[#202f42] bg-[#101926] text-muted hover:border-[#2b415a] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs text-brand">
+                  <Globe size={14} /> Anyone with link
+                </div>
+                <span className="text-[11px] leading-4 text-muted">
+                  Public access. No login required.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => isAnyone && handleToggleAccess("only_me")}
+                className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition ${
+                  !isAnyone
+                    ? "border-amber-500/50 bg-amber-500/10 text-white"
+                    : "border-[#202f42] bg-[#101926] text-muted hover:border-[#2b415a] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs text-amber-400">
+                  <Lock size={14} /> Only me
+                </div>
+                <span className="text-[11px] leading-4 text-muted">
+                  Private. Links are revoked.
+                </span>
+              </button>
+            </div>
           </div>
-          <div className="mt-4 rounded-xl border border-[#1e2a3a] bg-[#0c121c] p-3 text-xs text-muted">
-            <span className="font-semibold text-ink">Sharing status:</span> Private. Public share link generation will be available in a future update.
-          </div>
-        </>
+
+          {errorMessage && (
+            <div className="rounded-lg bg-rose-950/50 border border-rose-500/30 p-2.5 text-xs text-rose-300">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Link display & actions when active */}
+          {isAnyone && previewPath ? (
+            <div className="rounded-xl border border-[#22354a] bg-[#101926] p-4 text-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-brand flex items-center gap-1.5">
+                  <Check size={14} className="text-[#6cd3a5]" /> Active secure link
+                </span>
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={() => handleToggleAccess("only_me")}
+                  className="text-[11px] text-muted hover:text-rose-400 transition underline"
+                >
+                  Revoke link
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={typeof window !== "undefined" ? window.location.origin + previewPath : previewPath}
+                  className="flex-1 rounded-lg border border-[#2b3d54] bg-[#0c1421] px-3 py-2 text-xs font-mono text-[#c8d6e5] focus:outline-none"
+                />
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={copyShareLink}
+                  className="shrink-0 flex items-center gap-1"
+                >
+                  {copyState === "copied" ? <Check size={14} /> : <Copy size={14} />}
+                  <span>{copyState === "copied" ? "Copied!" : "Copy"}</span>
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-muted pt-1">
+                <span>Opens directly without login</span>
+                <Link
+                  href={previewPath}
+                  target="_blank"
+                  className="inline-flex items-center gap-1 font-semibold text-brand hover:underline"
+                >
+                  Open public page <ExternalLink size={11} />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[#23354b] p-4 text-center text-xs text-muted">
+              <Lock size={18} className="mx-auto mb-1.5 text-muted/60" />
+              <p className="font-semibold text-white">This content is private</p>
+              <p className="mt-0.5 text-[11px]">Select &ldquo;Anyone with link&rdquo; above to generate a secure share link.</p>
+            </div>
+          )}
+        </div>
       )}
     </Modal>
   );
 }
 
+export const SharePreviewModal = ShareModal;
+
 export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { meeting: Meeting; playbackUrl?: string; recordingMimeType?: string }) {
   const [currentMeeting, setCurrentMeeting] = useState(meeting);
   const [tab, setTab] = useState("summary");
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareTargetHighlight, setShareTargetHighlight] = useState<Highlight | null>(null);
   const [meetingDuration, setMeetingDuration] = useState(meeting.duration);
   const [doneIds, setDoneIds] = useState<string[]>(meeting.actions.filter((item) => item.done).map((item) => item.id));
+
+  function handleOpenShareMeeting() {
+    setShareTargetHighlight(null);
+    setShareOpen(true);
+  }
+
+  function handleOpenShareHighlight(highlight: Highlight) {
+    setShareTargetHighlight(highlight);
+    setShareOpen(true);
+  }
+
+  function handleShareUpdated(token?: string, highlightId?: string | null) {
+    setCurrentMeeting((prev) => {
+      let updatedLinks = prev.shareLinks ? [...prev.shareLinks] : [];
+      if (!token) {
+        // Set to Only me / Revoked
+        updatedLinks = updatedLinks.map((l) => {
+          if (highlightId ? l.highlightId === highlightId : !l.highlightId) {
+            return { ...l, status: "revoked", is_active: false };
+          }
+          return l;
+        });
+        return {
+          ...prev,
+          shareToken: highlightId ? prev.shareToken : undefined,
+          shareLinks: updatedLinks,
+        };
+      } else {
+        // Activated
+        const existingIdx = updatedLinks.findIndex((l) =>
+          highlightId ? l.highlightId === highlightId : !l.highlightId
+        );
+        const newEntry = {
+          id: "link-" + Date.now(),
+          token,
+          status: "active",
+          is_active: true,
+          highlightId: highlightId || null,
+        };
+        if (existingIdx >= 0) {
+          updatedLinks[existingIdx] = { ...updatedLinks[existingIdx], ...newEntry };
+        } else {
+          updatedLinks.push(newEntry);
+        }
+        return {
+          ...prev,
+          shareToken: highlightId ? prev.shareToken : token,
+          shareLinks: updatedLinks,
+        };
+      }
+    });
+  }
   const [isTranscribingLoading, setIsTranscribingLoading] = useState(false);
   const [isCheckingProgress, setIsCheckingProgress] = useState(false);
   const [isAnalyzingLoading, setIsAnalyzingLoading] = useState(false);
@@ -1213,7 +1436,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
               },
             ]}
           />
-          <Button variant="secondary" size="sm" onClick={() => setShareOpen(true)}><Share2 size={15} /> Share</Button>
+          <Button variant="secondary" size="sm" onClick={handleOpenShareMeeting}><Share2 size={15} /> Share</Button>
           <Dropdown
             label={<MoreHorizontal size={16} />}
             items={[
@@ -1261,12 +1484,19 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                   onSeek={playbackUrl ? seekTo : undefined}
                   onOpenCreate={() => handleOpenCreateHighlight()}
                   onDeleteHighlight={handleHighlightDeleted}
+                  onShareHighlight={handleOpenShareHighlight}
                 />
               )}
             </div>
           </Card>
       </div>
-      <SharePreviewModal meeting={currentMeeting} open={shareOpen} onClose={() => setShareOpen(false)} />
+      <ShareModal
+        meeting={currentMeeting}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        initialHighlight={shareTargetHighlight}
+        onShareUpdated={handleShareUpdated}
+      />
       <CreateHighlightModal
         open={isHighlightModalOpen}
         onClose={() => setIsHighlightModalOpen(false)}

@@ -33,6 +33,13 @@ export type Meeting = {
   summaryAvailable?: boolean;
   summaryVersion?: string;
   shareToken?: string;
+  shareLinks?: Array<{
+    id: string;
+    token: string;
+    status: string;
+    is_active?: boolean;
+    highlightId?: string | null;
+  }>;
 };
 
 const longSpeakers = [

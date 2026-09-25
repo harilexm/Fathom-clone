@@ -19,6 +19,7 @@ export interface DbMeetingRecord {
   title: string;
   source: string;
   status: string;
+  meeting_time?: string | null;
   duration?: number;
   duration_seconds?: number;
   participants?: string[] | null;
@@ -80,6 +81,7 @@ export interface DbMeetingRecord {
     status: string;
     is_active?: boolean;
     created_at: string;
+    highlight_id?: string | null;
   }>;
 }
 
@@ -264,8 +266,25 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
       };
     });
 
-  const activeShareLink = (dbMeeting.share_links || []).find(
-    (link) => link.status === "active" && link.is_active !== false
+  const shareLinks = (dbMeeting.share_links || []).map((link) => {
+    let highlightId = link.highlight_id || null;
+    if (!highlightId && link.token.startsWith("hl_")) {
+      const parts = link.token.split("_");
+      if (parts.length >= 3) {
+        highlightId = parts[1];
+      }
+    }
+    return {
+      id: link.id,
+      token: link.token,
+      status: link.status,
+      is_active: link.is_active !== false && link.status === "active",
+      highlightId,
+    };
+  });
+
+  const activeMeetingShareLink = shareLinks.find(
+    (link) => link.is_active && !link.highlightId
   );
 
   return {
@@ -288,6 +307,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
     sonioxJobId: dbMeeting.soniox_job_id || latestRecording?.soniox_job_id || dbMeeting.transcription_job_id || undefined,
     summaryAvailable: Boolean(summaryText || overview.length),
     summaryVersion: summaryVersion?.version,
-    shareToken: activeShareLink?.token,
+    shareToken: activeMeetingShareLink?.token,
+    shareLinks,
   };
 }
