@@ -10,7 +10,6 @@ import {
   ListTodo,
   Users,
   FileText,
-  ChevronRight,
   X,
   Calendar,
   ArrowRight,
@@ -264,7 +263,6 @@ export function SearchPage() {
               const isAction = item.matchType === "action_item";
               const isSummary = item.matchType === "summary";
               const isParticipant = item.matchType === "participant";
-              const isTitle = item.matchType === "title";
 
               let badgeBg = "bg-brand/10 text-brand border-brand/20";
               let badgeIcon = <FileText size={11} />;

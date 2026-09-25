@@ -17,8 +17,7 @@ import {
   Calendar,
   ExternalLink,
 } from "lucide-react";
-import { formatTimestamp } from "@/lib/meetings";
-import type { Meeting, Highlight, TranscriptTurn, ActionItem } from "@/lib/sample-data";
+import type { Meeting, Highlight } from "@/lib/sample-data";
 
 /**
  * Public Notice for Revoked or Private Share Links
@@ -73,7 +72,6 @@ export function PublicSharedHighlightWorkspace({
   recordingMimeType?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -86,16 +84,6 @@ export function PublicSharedHighlightWorkspace({
     video.addEventListener("loadedmetadata", handleLoaded);
     return () => video.removeEventListener("loadedmetadata", handleLoaded);
   }, [highlight.startTimeSec]);
-
-  function handlePlayClip() {
-    const video = videoRef.current;
-    if (!video) return;
-    if (highlight.startTimeSec && highlight.startTimeSec > 0) {
-      video.currentTime = highlight.startTimeSec;
-    }
-    void video.play();
-    setIsPlaying(true);
-  }
 
   const durationSec =
     highlight.endTimeSec && highlight.startTimeSec
@@ -159,8 +147,6 @@ export function PublicSharedHighlightWorkspace({
                 controls
                 playsInline
                 className="h-full w-full object-contain"
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
               >
                 {recordingMimeType && <source src={playbackUrl} type={recordingMimeType} />}
                 Your browser does not support HTML5 video playback.

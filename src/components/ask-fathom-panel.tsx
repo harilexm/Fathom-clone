@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AtSign,
   Bot,
@@ -218,7 +218,10 @@ export function AskFathomPanel({
 
   // Active scope key for message thread
   const activeScopeKey = selectedScope === "my-calls" ? "my-calls" : `meeting:${selectedScope}`;
-  const currentMessages = chatHistories[activeScopeKey] || [];
+  const currentMessages = useMemo(
+    () => chatHistories[activeScopeKey] || [],
+    [chatHistories, activeScopeKey]
+  );
 
   // 1. Fetch user's processed meetings from /api/ask
   useEffect(() => {
