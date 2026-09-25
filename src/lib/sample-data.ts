@@ -10,7 +10,7 @@ export type Meeting = {
   duration: string;
   attendees: string[];
   category: string;
-  status: "Ready" | "Processing" | "Uploaded" | "Pending" | string;
+  status: "Ready" | "Processing" | "Uploaded" | "Pending" | "Transcribing" | string;
   accent: string;
   summary: string;
   overview: string[];
@@ -19,6 +19,7 @@ export type Meeting = {
   transcript: TranscriptTurn[];
   isDemo?: boolean;
   analysisStatus?: string;
+  sonioxJobId?: string;
   summaryAvailable?: boolean;
   summaryVersion?: string;
   shareToken?: string;

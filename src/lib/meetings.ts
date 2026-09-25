@@ -9,6 +9,8 @@ export interface DbMeetingRecord {
   duration?: number;
   duration_seconds?: number;
   participants?: string[] | null;
+  soniox_job_id?: string | null;
+  transcription_job_id?: string | null;
   created_at: string;
   updated_at?: string;
   recordings?: Array<{
@@ -21,6 +23,8 @@ export interface DbMeetingRecord {
     duration?: number;
     duration_seconds?: number;
     status: string;
+    soniox_job_id?: string | null;
+    transcription_job_id?: string | null;
     created_at: string;
   }>;
   summary_versions?: Array<{
@@ -151,6 +155,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   const lowerStatus = rawStatus.toLowerCase();
   if (lowerStatus === "ready") statusText = "Ready";
   else if (lowerStatus === "processing") statusText = "Processing";
+  else if (lowerStatus === "transcribing") statusText = "Transcribing";
   else if (lowerStatus === "failed") statusText = "Failed";
   else if (lowerStatus === "uploaded") statusText = "Uploaded";
   else if (lowerStatus === "pending") statusText = "Uploaded";
@@ -216,6 +221,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
     transcript,
     isDemo: false,
     analysisStatus: dbMeeting.status,
+    sonioxJobId: dbMeeting.soniox_job_id || latestRecording?.soniox_job_id || dbMeeting.transcription_job_id || undefined,
     summaryAvailable: Boolean(summaryText || overview.length),
     summaryVersion: summaryVersion?.version,
     shareToken: activeShareLink?.token,

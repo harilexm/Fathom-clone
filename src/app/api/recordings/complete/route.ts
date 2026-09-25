@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getR2Client, getR2Config } from "@/lib/r2";
+import { getR2Client, getR2Config, createPresignedDownloadUrl } from "@/lib/r2";
 import { probeR2MediaDuration } from "@/lib/media-duration";
+import { submitSonioxAsyncTranscription } from "@/lib/soniox";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -262,6 +263,54 @@ export async function POST(request: NextRequest) {
         { error: recErr?.message || "Failed to create recording record" },
         { status: 500 },
       );
+    }
+
+    // Trigger Soniox async speech-to-text transcription
+    try {
+      const downloadUrl = await createPresignedDownloadUrl({
+        objectKey,
+        expiresIn: 3600,
+      });
+
+      const sonioxJob = await submitSonioxAsyncTranscription({
+        audioUrl: downloadUrl,
+        clientReferenceId: `meeting_${meetingRecord.id}`,
+        enableSpeakerDiarization: true,
+      });
+
+      if (sonioxJob?.id) {
+        const nowIso = new Date().toISOString();
+        const { data: transcribingMeeting } = await supabase
+          .from("meetings")
+          .update({
+            status: "transcribing",
+            soniox_job_id: sonioxJob.id,
+            transcription_job_id: sonioxJob.id,
+            updated_at: nowIso,
+          })
+          .eq("id", meetingRecord.id)
+          .select()
+          .single();
+
+        await supabase
+          .from("recordings")
+          .update({
+            status: "transcribing",
+            soniox_job_id: sonioxJob.id,
+            transcription_job_id: sonioxJob.id,
+            updated_at: nowIso,
+          })
+          .eq("id", recordingRecord.id);
+
+        if (transcribingMeeting) {
+          meetingRecord = transcribingMeeting;
+        } else {
+          meetingRecord.status = "transcribing";
+        }
+        recordingRecord.status = "transcribing";
+      }
+    } catch (sonioxErr) {
+      console.warn("Async Soniox transcription auto-dispatch deferred/failed:", sonioxErr);
     }
 
     return NextResponse.json(

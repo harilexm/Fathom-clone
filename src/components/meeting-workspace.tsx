@@ -126,6 +126,7 @@ export function PendingContent({
 }) {
   const isFailed = meeting.analysisStatus === "failed";
   const isProcessing = meeting.analysisStatus === "processing";
+  const isTranscribing = meeting.analysisStatus === "transcribing" || meeting.status?.toLowerCase() === "transcribing";
   const isPending = meeting.analysisStatus === "uploaded" || meeting.analysisStatus === "pending" || !meeting.analysisStatus;
 
   let title: string;
@@ -152,6 +153,21 @@ export function PendingContent({
     };
     title = titles[type];
     message = "The recording is currently being processed. Results will appear automatically once analysis completes.";
+  } else if (isTranscribing) {
+    const titles: Record<string, string> = {
+      summary: "Summary pending",
+      transcript: "Transcribing audio",
+      actions: "Action items pending",
+      highlights: "Highlights pending",
+    };
+    const messages: Record<string, string> = {
+      summary: "Speech-to-text transcription is currently running. AI summary generation will begin once transcription completes.",
+      transcript: "Soniox asynchronous Speech-to-Text transcription is in progress with speaker diarization and timestamps.",
+      actions: "Action items will be extracted automatically once transcription and AI analysis complete.",
+      highlights: "Key moments and highlights will be identified once audio processing completes.",
+    };
+    title = titles[type];
+    message = messages[type];
   } else if (isPending) {
     const titles: Record<string, string> = {
       summary: "Summary pending",
@@ -538,7 +554,15 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
           </div>
           <h1 className="max-w-4xl break-words text-[21px] font-semibold leading-tight tracking-tight sm:text-[24px]">{meeting.title}</h1>
           {!meeting.isDemo && (
-            <span role="status" className="mt-2 inline-block rounded bg-[#132b43] px-2 py-1 text-xs font-semibold text-brand">
+            <span
+              role="status"
+              className={
+                "mt-2 inline-block rounded px-2 py-1 text-xs font-semibold " +
+                (meeting.status?.toLowerCase() === "transcribing"
+                  ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
+                  : "bg-[#132b43] text-brand")
+              }
+            >
               {meeting.status}
             </span>
           )}
