@@ -15,7 +15,6 @@ export type AccountDetails = {
 };
 
 const links = [
-  { href: "/settings", label: "Settings" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faqs", label: "FAQs" },
   { href: "/privacy-policy", label: "Privacy Policy" },
