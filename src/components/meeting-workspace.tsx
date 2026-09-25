@@ -71,16 +71,6 @@ const RecordingPlayer = forwardRef<HTMLMediaElement, {
     const dur = el.duration;
     if (Number.isFinite(dur) && dur > 0) {
       onDurationDetected?.(Math.max(1, Math.round(dur)));
-    } else if (dur === Infinity) {
-      el.currentTime = 1e101;
-      const onTimeUpdate = () => {
-        el.removeEventListener("timeupdate", onTimeUpdate);
-        const resolvedDur = el.duration === Infinity ? el.currentTime : el.duration;
-        if (Number.isFinite(resolvedDur) && resolvedDur > 0) {
-          onDurationDetected?.(Math.max(1, Math.round(resolvedDur)));
-        }
-      };
-      el.addEventListener("timeupdate", onTimeUpdate);
     }
   };
 
@@ -90,9 +80,10 @@ const RecordingPlayer = forwardRef<HTMLMediaElement, {
         <div className="flex min-h-[180px] items-center px-4">
           <audio
             ref={internalAudioRef}
+            src={playbackUrl}
             aria-label="Meeting recording"
             controls
-            preload="metadata"
+            preload="auto"
             className="w-full"
             onLoadedMetadata={handleLoadedMetadata}
           >
@@ -102,10 +93,12 @@ const RecordingPlayer = forwardRef<HTMLMediaElement, {
       ) : (
         <video
           ref={internalVideoRef}
+          src={playbackUrl}
           aria-label="Meeting recording"
           controls
-          preload="metadata"
-          className="aspect-video max-h-[480px] w-full bg-black"
+          playsInline
+          preload="auto"
+          className="aspect-video max-h-[480px] w-full bg-black object-contain"
           onLoadedMetadata={handleLoadedMetadata}
         >
           <source src={playbackUrl} type={mimeType || "video/mp4"} />

@@ -21,7 +21,7 @@ function readMediaDurationSeconds(file: File): Promise<number | undefined> {
     const media = document.createElement(isAudio ? "audio" : "video");
     const objectUrl = URL.createObjectURL(file);
     let settled = false;
-    const timeout = window.setTimeout(() => finish(), 8000);
+    const timeout = window.setTimeout(() => finish(), 2000);
 
     function finish(duration?: number) {
       if (settled) return;
@@ -196,7 +196,11 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
       });
 
       // 3. Persist meeting and recording records for authenticated user only after successful upload
-      const durationSeconds = await durationPromise;
+      // Do not block recording persistence if client-side metadata extraction takes too long
+      const durationSeconds = await Promise.race([
+        durationPromise,
+        new Promise<undefined>((r) => setTimeout(() => r(undefined), 1000)),
+      ]);
       const completeRes = await fetch("/api/recordings/complete", {
         method: "POST",
         headers: {
