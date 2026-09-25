@@ -6,6 +6,7 @@ import { ChartNoAxesColumnIncreasing, Play, Search, Settings, Sparkles, Coins } 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AskFathomPanel } from "@/components/ask-fathom-panel";
 import { AccountMenu, type AccountDetails } from "@/components/account-menu";
+import { FathomLogo } from "@/components/fathom-logo";
 
 const tabs = [
   { href: "/my-calls", label: "My Calls", icon: Play },
@@ -109,15 +110,7 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
     <div className="flex h-screen flex-col overflow-hidden bg-canvas">
       <header inert={mobileAskOpen} className="shrink-0 z-30 border-b border-[#1a2433] bg-[#0a0e17]/95 backdrop-blur">
         <div className="flex h-[72px] items-center gap-6 border-b border-[#1a2433] px-6 lg:px-10">
-          <Link href="/my-calls" className="flex shrink-0 items-center gap-3 text-[18px] font-bold tracking-[.2em] text-white" aria-label="Fathom home">
-            <span aria-hidden="true" className="flex h-8 items-center gap-[3px]">
-              <span className="h-[16px] w-[4px] rounded-full bg-[#4b83ff]" />
-              <span className="h-[28px] w-[4px] rounded-full bg-[#7badff]" />
-              <span className="h-[20px] w-[4px] rounded-full bg-[#4b83ff]" />
-              <span className="h-[14px] w-[4px] rounded-full bg-[#4b83ff]" />
-            </span>
-            <span>FATHOM</span>
-          </Link>
+          <FathomLogo href="/my-calls" size="md" />
           <form onSubmit={handleSearch} className="ml-2 flex h-[38px] w-[340px] shrink-0 items-center gap-2.5 rounded-md border border-[#1e2a3a] bg-[#0f1520] px-3 text-[13px] text-[#7b8da3] focus-within:border-[#2c3d52] focus-within:text-[#d1d9e5] sm:ml-4">
             <Search size={16} className="shrink-0" />
             <input

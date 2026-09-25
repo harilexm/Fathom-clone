@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ArrowRight, Check, ChevronLeft } from "lucide-react";
 import Link from "next/link";
+import { FathomLogo } from "@/components/fathom-logo";
 import { finishOnboarding, saveOnboardingStep, type FinishState, type SaveState } from "./actions";
 import type { CalendarStatus, UserProfile } from "@/lib/onboarding-types";
 
@@ -68,15 +69,7 @@ export function OnboardingFlow({ profile, calendarConfigured, calendarFeedback }
   return <main className="min-h-screen bg-[#0a0e17] px-5 py-6 text-[#e8eef8] sm:px-8">
     <div className="mx-auto max-w-2xl">
       <header className="flex items-center justify-center pt-8">
-        <Link href="/" className="flex shrink-0 items-center gap-3 text-[18px] font-bold tracking-[.2em] text-white transition-opacity hover:opacity-80" aria-label="Fathom home">
-          <span aria-hidden="true" className="flex h-8 items-center gap-[3px]">
-            <span className="h-[16px] w-[4px] rounded-full bg-[#4b83ff]" />
-            <span className="h-[28px] w-[4px] rounded-full bg-[#7badff]" />
-            <span className="h-[20px] w-[4px] rounded-full bg-[#4b83ff]" />
-            <span className="h-[14px] w-[4px] rounded-full bg-[#4b83ff]" />
-          </span>
-          <span>FATHOM</span>
-        </Link>
+        <FathomLogo href="/" size="md" />
       </header>
       <div className="mt-16 sm:mt-24">
         <div className="flex items-baseline justify-between">

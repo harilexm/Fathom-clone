@@ -965,7 +965,7 @@ export function ShareModal({
   const activeToken = activeLink?.token || (!selectedHighlightId ? meeting.shareToken : undefined);
 
   const previewPath = isDemo
-    ? `/share/sample-${meeting.id}`
+    ? (selectedHighlightId ? `/share/sample-${meeting.id}?hl=${selectedHighlightId}` : `/share/sample-${meeting.id}`)
     : activeToken
       ? `/share/${activeToken}`
       : undefined;

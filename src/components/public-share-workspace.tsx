@@ -18,6 +18,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import type { Meeting, Highlight } from "@/lib/sample-data";
+import { FathomLogo } from "@/components/fathom-logo";
+import { HighlightClipPlayer } from "@/components/highlight-clip-player";
 
 /**
  * Public Notice for Revoked or Private Share Links
@@ -96,9 +98,7 @@ export function PublicSharedHighlightWorkspace({
         {/* Top brand header */}
         <header className="flex items-center justify-between border-b border-[#202d3d] pb-4">
           <div className="flex items-center gap-3">
-            <span className="text-[17px] font-black tracking-[.14em] text-white">
-              FATHOM<span className="text-brand">.</span>
-            </span>
+            <FathomLogo href="/" size="sm" />
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
               <Bookmark size={11} /> Shared Highlight
             </span>
@@ -137,31 +137,37 @@ export function PublicSharedHighlightWorkspace({
           </div>
         </div>
 
-        {/* Video Player */}
-        <div className="relative overflow-hidden rounded-2xl border border-[#223347] bg-[#080d14] shadow-2xl">
-          {playbackUrl ? (
-            <div className="aspect-video w-full bg-black">
-              <video
-                ref={videoRef}
-                src={playbackUrl}
-                controls
-                playsInline
-                className="h-full w-full object-contain"
-              >
-                {recordingMimeType && <source src={playbackUrl} type={recordingMimeType} />}
-                Your browser does not support HTML5 video playback.
-              </video>
-            </div>
-          ) : (
-            <div className="flex aspect-video w-full flex-col items-center justify-center p-6 text-center text-muted">
-              <Bookmark size={36} className="text-brand/40 mb-2" />
-              <p className="text-sm font-semibold text-white">Clip preview</p>
-              <p className="mt-1 text-xs max-w-sm">
-                Video playback is currently unavailable for this clip. Read the quote below.
-              </p>
-            </div>
-          )}
-        </div>
+        {/* Highlight Video Clip Player */}
+        {playbackUrl && highlight.startTimeSec !== undefined && highlight.endTimeSec !== undefined ? (
+          <HighlightClipPlayer
+            playbackUrl={playbackUrl}
+            mimeType={recordingMimeType}
+            startTimeSec={highlight.startTimeSec}
+            endTimeSec={highlight.endTimeSec}
+            clipTitle={highlight.title}
+          />
+        ) : playbackUrl ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[#223347] bg-[#080d14] shadow-2xl">
+            <video
+              src={playbackUrl}
+              controls
+              playsInline
+              preload="auto"
+              className="h-full w-full object-contain"
+            >
+              {recordingMimeType && <source src={playbackUrl} type={recordingMimeType} />}
+              Your browser does not support HTML5 video playback.
+            </video>
+          </div>
+        ) : (
+          <div className="flex aspect-video w-full flex-col items-center justify-center p-6 text-center text-muted surface rounded-2xl border border-[#223347]">
+            <Bookmark size={36} className="text-brand/40 mb-2" />
+            <p className="text-sm font-semibold text-white">Clip preview</p>
+            <p className="mt-1 text-xs max-w-sm">
+              Video playback is currently unavailable for this clip. Read the quote below.
+            </p>
+          </div>
+        )}
 
         {/* Highlight Quote Box */}
         {highlight.text && (
@@ -228,9 +234,7 @@ export function PublicSharedMeetingWorkspace({
         {/* Header */}
         <header className="flex items-center justify-between border-b border-[#202d3d] pb-4">
           <div className="flex items-center gap-3">
-            <span className="text-[17px] font-black tracking-[.14em] text-white">
-              FATHOM<span className="text-brand">.</span>
-            </span>
+            <FathomLogo href="/" size="sm" />
             <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand">
               Public Meeting
             </span>
@@ -287,6 +291,7 @@ export function PublicSharedMeetingWorkspace({
                     src={playbackUrl}
                     controls
                     playsInline
+                    preload="auto"
                     className="h-full w-full object-contain"
                   >
                     {recordingMimeType && <source src={playbackUrl} type={recordingMimeType} />}

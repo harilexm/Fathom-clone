@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoginForm } from "./login-form";
+import { FathomLogo } from "@/components/fathom-logo";
 
 const errors: Record<string, string> = {
   google: "Google sign-in could not start. Please try again.",
@@ -13,15 +14,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="flex min-h-screen flex-col bg-[#0a0e17] text-[#e8eef8]">
       <header className="flex w-full items-center justify-center pt-12">
-        <Link href="/" className="flex shrink-0 items-center gap-3 text-[18px] font-bold tracking-[.2em] text-white transition-opacity hover:opacity-80" aria-label="Fathom home">
-          <span aria-hidden="true" className="flex h-8 items-center gap-[3px]">
-            <span className="h-[16px] w-[4px] rounded-full bg-[#4b83ff]" />
-            <span className="h-[28px] w-[4px] rounded-full bg-[#7badff]" />
-            <span className="h-[20px] w-[4px] rounded-full bg-[#4b83ff]" />
-            <span className="h-[14px] w-[4px] rounded-full bg-[#4b83ff]" />
-          </span>
-          <span>FATHOM</span>
-        </Link>
+        <FathomLogo href="/" size="md" />
       </header>
 
       <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col items-center justify-center gap-12 px-6 pb-12 pt-8 lg:flex-row lg:justify-between lg:gap-24 lg:pb-24 lg:pt-0">

@@ -17,8 +17,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function SharePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams?: Promise<{ hl?: string }>;
+}) {
   const { token } = await params;
+  const { hl } = (await searchParams) || {};
 
   // 1. Handle sample fixture preview tokens
   if (token === "sample-preview" || token.startsWith("sample-")) {
@@ -27,6 +34,20 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         ? meetings[0]
         : findMeeting(token.slice(7));
     if (!sampleMeeting) notFound();
+
+    if (hl) {
+      const sampleHl = sampleMeeting.highlights.find((h) => h.id === hl);
+      if (sampleHl) {
+        return (
+          <PublicSharedHighlightWorkspace
+            meetingTitle={sampleMeeting.title}
+            meetingDate={sampleMeeting.date}
+            highlight={sampleHl}
+          />
+        );
+      }
+    }
+
     return <PublicSharedMeetingWorkspace meeting={sampleMeeting} />;
   }
 
@@ -107,7 +128,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
       }
 
       const startSec = Number(dbHighlight.start_timestamp ?? dbHighlight.start_time) || 0;
-      const endSec = Number(dbHighlight.end_timestamp ?? dbHighlight.end_time) || startSec;
+      let endSec = Number(dbHighlight.end_timestamp ?? dbHighlight.end_time) || 0;
+      if (endSec <= startSec) {
+        endSec = startSec + 15;
+      }
 
       let quoteText = dbHighlight.text?.trim();
       if (!quoteText && dbHighlight.kind && dbHighlight.kind.startsWith("user:")) {
