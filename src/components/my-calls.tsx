@@ -263,10 +263,10 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
         aria-hidden="true"
         onChange={handleFileSelect}
       />
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="rounded-md border border-[#1e2a3a] bg-[#0f1520] px-3 py-2 text-xs font-semibold text-ink">All calls</span>
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <span className="rounded-md border border-[#151e2b] bg-[#080c14] px-3 py-1.5 text-xs font-semibold text-[#f1f5f9]">All calls</span>
         <Dropdown
-          label={<><span>Filters</span>{type !== "all" && <span className="h-1.5 w-1.5 rounded-full bg-brand" />}</>}
+          label={<><span>Filters</span>{type !== "all" && <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6]" />}</>}
           items={[
             { label: "All types", onClick: () => setType("all") },
             { label: "Uploads", onClick: () => setType("Upload") },
@@ -276,44 +276,44 @@ export function MyCalls({ initialMeetings = [] }: { initialMeetings?: Meeting[] 
           ]}
         />
         {uploadState.status === "uploading" ? (
-          <Button size="sm" disabled className="ml-auto min-w-[140px]">
-            <LoaderCircle size={14} className="animate-spin" /> Uploading {uploadState.progress}%
+          <Button size="sm" disabled className="ml-auto min-w-[140px] bg-[#1d4ed8] text-white">
+            <LoaderCircle size={13} className="animate-spin" /> Uploading {uploadState.progress}%
           </Button>
         ) : uploadState.status === "success" ? (
           <Button
             size="sm"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
-            className="ml-auto text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+            className="ml-auto text-emerald-400 border-emerald-900/40 bg-emerald-950/30"
             title={`Successfully uploaded ${uploadState.filename}`}
           >
-            <Check size={14} /> Uploaded!
+            <Check size={13} /> Uploaded!
           </Button>
         ) : uploadState.status === "error" ? (
           <Button
             size="sm"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
-            className="ml-auto text-rose-400 border-rose-500/30 bg-rose-500/10"
+            className="ml-auto text-rose-400 border-rose-900/40 bg-rose-950/30"
             title={uploadState.message}
           >
-            <AlertCircle size={14} /> Failed (Retry)
+            <AlertCircle size={13} /> Failed (Retry)
           </Button>
         ) : (
           <Button
             size="sm"
             onClick={() => fileInputRef.current?.click()}
-            className="ml-auto"
+            className="ml-auto bg-[#2563eb] text-white hover:bg-[#1d4ed8] shadow-none"
           >
-            <Upload size={14} /> Upload recording
+            <Upload size={13} /> Upload recording
           </Button>
         )}
       </div>
 
       {uploadState.status === "error" && (
-        <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-300">
+        <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-md border border-[#481822] bg-[#1a0c10] px-4 py-2.5 text-xs text-rose-400">
           <div className="flex items-center gap-2">
-            <AlertCircle size={15} className="shrink-0 text-rose-400" />
+            <AlertCircle size={14} className="shrink-0 text-rose-400" />
             <span>{uploadState.message}</span>
           </div>
           <button

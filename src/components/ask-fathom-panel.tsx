@@ -505,16 +505,16 @@ export function AskFathomPanel({
 
   if (collapsed) {
     return (
-      <div className="flex h-full flex-col items-center rounded-tl-xl border-l border-[#1a2433] bg-[#0c1119]">
-        <div className="flex h-[52px] w-full shrink-0 items-center justify-center">
+      <div className="flex h-full flex-col items-center border-l border-[#131b26] bg-[#070a10]">
+        <div className="flex h-[50px] w-full shrink-0 items-center justify-center">
           <button
             type="button"
             onClick={onToggle}
             aria-label="Expand Ask Fathom"
             title="Expand Ask Fathom"
-            className="rounded-md p-1.5 text-[#a9b8cb] hover:bg-[#202c3a] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6794ff]"
+            className="rounded-md p-1.5 text-[#64748b] transition-colors hover:bg-[#0e1420] hover:text-[#f1f5f9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3b82f6]"
           >
-            <ChevronLeft size={18} strokeWidth={1.5} />
+            <ChevronLeft size={16} strokeWidth={1.5} />
           </button>
         </div>
       </div>
@@ -525,14 +525,14 @@ export function AskFathomPanel({
   const prompts = isMeetingScope ? meetingPrompts : libraryPrompts;
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-tl-xl border-l border-[#1a2433] bg-[#0c1119]">
+    <div className="flex h-full min-h-0 flex-col border-l border-[#131b26] bg-[#070a10]">
       {/* Header */}
-      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[#151e2c] px-4">
+      <div className="flex h-[50px] shrink-0 items-center justify-between border-b border-[#131b26] px-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#162744] text-[#4b78ff]">
-            <Sparkles size={14} strokeWidth={2.2} />
+          <div className="flex h-6 w-6 items-center justify-center rounded-md border border-[#17253d] bg-[#0e1726] text-[#3b82f6]">
+            <Sparkles size={13} strokeWidth={2} />
           </div>
-          <h2 className="text-[14px] font-semibold text-[#f3f6fc]">Ask Fathom</h2>
+          <h2 className="text-[13px] font-semibold text-[#f1f5f9]">Ask Fathom</h2>
         </div>
         <div className="flex items-center gap-1">
           {currentMessages.length > 0 && (
@@ -541,9 +541,9 @@ export function AskFathomPanel({
               onClick={handleClearChat}
               aria-label="Reset chat for this scope"
               title="Reset conversation"
-              className="rounded-md p-1.5 text-[#7b8da3] transition-colors hover:bg-[#1a2434] hover:text-white"
+              className="rounded-md p-1.5 text-[#64748b] transition-colors hover:bg-[#0e1420] hover:text-[#f1f5f9]"
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={13} />
             </button>
           )}
           <button
@@ -551,15 +551,15 @@ export function AskFathomPanel({
             onClick={onToggle}
             aria-label={toggleLabel}
             title={toggleLabel}
-            className="rounded-md p-1.5 text-[#a9b8cb] hover:bg-[#202c3a] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6794ff]"
+            className="rounded-md p-1.5 text-[#64748b] transition-colors hover:bg-[#0e1420] hover:text-[#f1f5f9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3b82f6]"
           >
-            <ChevronRight size={18} strokeWidth={1.5} />
+            <ChevronRight size={16} strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
       {/* Scope Selector Bar */}
-      <div className="shrink-0 border-b border-[#151e2c] bg-[#090d14] px-4 py-2">
+      <div className="shrink-0 border-b border-[#131b26] bg-[#05070c] px-4 py-2">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="fathom-scope-select" className="sr-only">
             Ask Fathom Scope
@@ -569,7 +569,7 @@ export function AskFathomPanel({
               id="fathom-scope-select"
               value={selectedScope}
               onChange={(e) => handleScopeChange(e.target.value)}
-              className="h-8 w-full appearance-none truncate rounded-md border border-[#1a2433] bg-[#0d131d] pl-3 pr-8 text-[12px] font-medium text-[#c0cce0] outline-none transition-colors hover:border-[#2a384c] hover:text-[#f3f6fc] focus-visible:ring-1 focus-visible:ring-[#4b83ff]"
+              className="h-8 w-full appearance-none truncate rounded-md border border-[#151e2b] bg-[#080c14] pl-3 pr-8 text-[12px] font-medium text-[#cbd5e1] outline-none transition-colors hover:border-[#1e2a3c] hover:text-[#f1f5f9] focus-visible:ring-1 focus-visible:ring-[#2563eb]"
             >
               <option value="my-calls">My Calls</option>
               {/* If on a meeting page, show current meeting first */}
@@ -590,7 +590,7 @@ export function AskFathomPanel({
             <ChevronDown
               size={13}
               aria-hidden="true"
-              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7b8da3]"
+              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#52637a]"
             />
           </div>
         </div>
@@ -601,7 +601,7 @@ export function AskFathomPanel({
         {currentMessages.length === 0 ? (
           /* Empty State: Show suggested prompt chips */
           <div className="mt-auto flex flex-col items-end space-y-1.5 pb-2">
-            <p className="w-full text-left text-[11px] font-medium uppercase tracking-wider text-[#637792]">
+            <p className="w-full text-left text-[10px] font-semibold uppercase tracking-wider text-[#52637a]">
               Suggested Prompts
             </p>
             {prompts.map((prompt) => (
@@ -610,7 +610,7 @@ export function AskFathomPanel({
                 type="button"
                 onClick={() => handleSubmitQuestion(prompt)}
                 disabled={isStreaming}
-                className="w-fit max-w-[95%] rounded-lg border border-[#1b2535] bg-[#0d131d] px-3 py-1.5 text-left text-[12px] text-[#c0cde0] transition-colors hover:border-[#2a3a50] hover:bg-[#121a28] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4b83ff]"
+                className="w-fit max-w-[95%] rounded-md border border-[#151e2b] bg-[#080c14] px-3 py-1.5 text-left text-[12px] text-[#94a3b8] transition-colors hover:border-[#1e2a3c] hover:bg-[#0e1420] hover:text-[#f1f5f9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2563eb]"
               >
                 {prompt}
               </button>
@@ -618,7 +618,7 @@ export function AskFathomPanel({
           </div>
         ) : (
           /* Conversation Thread */
-          <div className="space-y-4 pb-2">
+          <div className="space-y-3.5 pb-2">
             {currentMessages.map((msg) => (
               <div
                 key={msg.id}
@@ -629,22 +629,22 @@ export function AskFathomPanel({
                 }
               >
                 {msg.role === "user" ? (
-                  <div className="max-w-[88%] rounded-2xl rounded-tr-sm border border-[#2b446a] bg-[#182944] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#f0f5fc]">
+                  <div className="max-w-[88%] rounded-xl rounded-tr-xs border border-[#18263d] bg-[#0e1726] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#f1f5f9]">
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="w-full rounded-2xl rounded-tl-sm border border-[#1a2536] bg-[#0f1623] p-3.5 text-[13px] text-[#e0e8f5]">
+                  <div className="w-full rounded-xl rounded-tl-xs border border-[#131b26] bg-[#080c14] p-3.5 text-[13px] text-[#cbd5e1]">
                     {/* Assistant Header */}
                     <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7fa5dd]">
-                        <Bot size={13} className="text-[#4b78ff]" />
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#8fa0b5]">
+                        <Bot size={13} className="text-[#3b82f6]" />
                         <span>Fathom AI</span>
                         {msg.provider && (
-                          <span className="ml-1 rounded bg-[#141d2b] px-1.5 py-0.2 font-mono text-[9.5px] text-[#869cb8]">
+                          <span className="ml-1 rounded border border-[#151e2b] bg-[#0b0f17] px-1.5 py-0.2 font-mono text-[9px] text-[#64748b]">
                             {msg.provider === "grounded-notice"
                               ? "status"
                               : msg.provider === "anthropic"
-                              ? "anthropic fallback"
+                              ? "anthropic"
                               : "openai"}
                           </span>
                         )}
@@ -654,12 +654,12 @@ export function AskFathomPanel({
                           type="button"
                           onClick={() => handleCopy(msg.id, msg.content)}
                           title="Copy answer"
-                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[#71859e] hover:bg-[#182333] hover:text-[#c4d6ee]"
+                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[#52637a] transition-colors hover:bg-[#0e1420] hover:text-[#cbd5e1]"
                         >
                           {copiedId === msg.id ? (
                             <>
-                              <Check size={11} className="text-[#36d2a0]" />
-                              <span className="text-[#36d2a0]">Copied</span>
+                              <Check size={11} className="text-emerald-400" />
+                              <span className="text-emerald-400">Copied</span>
                             </>
                           ) : (
                             <>
@@ -673,8 +673,8 @@ export function AskFathomPanel({
 
                     {/* Assistant Message Body */}
                     {msg.isStreaming && !msg.content ? (
-                      <div className="flex items-center gap-2 py-1 text-[12px] text-[#8ea4c2]">
-                        <Sparkles size={14} className="animate-spin text-[#4b78ff]" />
+                      <div className="flex items-center gap-2 py-1 text-[12px] text-[#64748b]">
+                        <Sparkles size={13} className="animate-spin text-[#3b82f6]" />
                         <span>
                           {isMeetingScope
                             ? "Analyzing meeting transcript & summary..."
@@ -687,16 +687,16 @@ export function AskFathomPanel({
 
                     {/* Streaming Cursor */}
                     {msg.isStreaming && msg.content && (
-                      <span className="inline-block h-3.5 w-1.5 animate-pulse bg-[#4b83ff] align-middle" />
+                      <span className="inline-block h-3.5 w-1.5 animate-pulse bg-[#2563eb] align-middle" />
                     )}
 
                     {/* Grounded Sources & Citations */}
                     {!msg.isStreaming && msg.sources && msg.sources.length > 0 && (
-                      <div className="mt-3 border-t border-[#182335] pt-2">
+                      <div className="mt-3 border-t border-[#131b26] pt-2">
                         <button
                           type="button"
                           onClick={() => toggleSourceExpand(msg.id)}
-                          className="flex items-center gap-1.5 text-[11px] font-medium text-[#768da7] hover:text-[#adc3df]"
+                          className="flex items-center gap-1.5 text-[11px] font-medium text-[#52637a] transition-colors hover:text-[#8fa0b5]"
                         >
                           <ChevronDown
                             size={12}
@@ -716,18 +716,18 @@ export function AskFathomPanel({
                             {msg.sources.map((src, idx) => (
                               <div
                                 key={idx}
-                                className="rounded border border-[#192434] bg-[#0c121d] p-2 text-[11px] text-[#93a7c0]"
+                                className="rounded border border-[#131b26] bg-[#05070c] p-2 text-[11px] text-[#8fa0b5]"
                               >
-                                <div className="flex items-center justify-between font-semibold text-[#c8d8ec]">
+                                <div className="flex items-center justify-between font-semibold text-[#cbd5e1]">
                                   <span>{src.meetingTitle}</span>
                                   {src.timestamp && (
-                                    <span className="font-mono text-[10px] text-[#5b87d4]">
+                                    <span className="font-mono text-[10px] text-[#3b82f6]">
                                       {src.timestamp}
                                     </span>
                                   )}
                                 </div>
                                 {src.snippet && (
-                                  <p className="mt-1 line-clamp-2 text-[#7f93ac]">
+                                  <p className="mt-1 line-clamp-2 text-[#64748b]">
                                     {src.snippet}
                                   </p>
                                 )}
@@ -754,7 +754,7 @@ export function AskFathomPanel({
         }}
         className="shrink-0 px-4 pb-4 pt-1"
       >
-        <div className="flex h-[96px] flex-col rounded-md border border-[#1e2a3a] bg-[#0f1520] p-3 focus-within:border-[#4b83ff]">
+        <div className="flex h-[92px] flex-col rounded-md border border-[#151e2b] bg-[#080c14] p-2.5 focus-within:border-[#2563eb] focus-within:ring-1 focus-within:ring-[#2563eb]/20 transition-all">
           <textarea
             ref={textareaRef}
             aria-label="Ask Fathom"
@@ -773,19 +773,19 @@ export function AskFathomPanel({
                 : "Ask anything across your processed calls..."
             }
             rows={2}
-            className="min-h-0 w-full flex-1 resize-none bg-transparent text-[13px] leading-tight text-[#f1f5fb] placeholder:text-[#8b9db5] focus:outline-none disabled:opacity-50"
+            className="min-h-0 w-full flex-1 resize-none bg-transparent text-[13px] leading-tight text-[#f1f5f9] placeholder:text-[#475569] focus:outline-none disabled:opacity-50"
           />
-          <div className="flex items-center justify-end text-[#bdd0eb]">
+          <div className="flex items-center justify-end text-[#8fa0b5]">
             <button
               type="submit"
               disabled={!question.trim() || isStreaming}
               aria-label="Send question"
-              className="flex h-8 w-8 items-center justify-center rounded border border-[#477bff] bg-[#205cf0] text-white hover:bg-[#3470ff] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6794ff]"
+              className="flex h-7 w-7 items-center justify-center rounded bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-40 transition-colors shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#3b82f6]"
             >
               {isStreaming ? (
-                <Sparkles size={13} className="animate-spin" />
+                <Sparkles size={12} className="animate-spin" />
               ) : (
-                <Send size={13} />
+                <Send size={12} />
               )}
             </button>
           </div>

@@ -133,46 +133,46 @@ export function SearchPage() {
       <form onSubmit={handleFormSubmit} className="relative flex items-center gap-2">
         <div className="relative flex-1">
           <Search
-            size={18}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#52637a] pointer-events-none"
           />
           <input
             type="text"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             placeholder="Search words spoken, titles, people, decisions, action items..."
-            className="w-full rounded-xl border border-[#2b3e55] bg-[#0c1421] py-3 pl-10 pr-10 text-sm text-white placeholder-muted focus:border-brand focus:outline-none shadow-sm"
+            className="w-full rounded-md border border-[#151e2b] bg-[#080c14] py-2.5 pl-9 pr-9 text-xs text-[#f1f5f9] placeholder:text-[#52637a] focus:border-[#2563eb] focus:outline-none focus:ring-1 focus:ring-[#2563eb]/20 transition-all"
           />
           {inputVal && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-white transition"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#64748b] hover:text-[#f1f5f9] transition-colors"
               title="Clear search"
             >
-              <X size={15} />
+              <X size={13} />
             </button>
           )}
         </div>
         <button
           type="submit"
           disabled={isLoading}
-          className="rounded-xl bg-brand px-5 py-3 text-xs font-semibold text-white shadow-md hover:bg-brand/90 transition disabled:opacity-60"
+          className="rounded-md bg-[#2563eb] px-4 py-2.5 text-xs font-semibold text-white shadow-none hover:bg-[#1d4ed8] transition-colors disabled:opacity-50"
         >
           {isLoading ? "Searching..." : "Search"}
         </button>
       </form>
 
-      {/* Filter Tabs / Pills (visible when results exist or query is active) */}
+      {/* Filter Tabs / Pills */}
       {searchedQuery && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#202f42] pb-3 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#131b26] pb-3 text-xs">
           <button
             type="button"
             onClick={() => setFilter("all")}
-            className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+            className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
               filter === "all"
-                ? "bg-brand text-white shadow-sm"
-                : "bg-[#131d2b] text-muted hover:text-white"
+                ? "bg-[#0e1726] border border-[#1e3458] text-[#3b82f6]"
+                : "bg-[#080c14] border border-[#151e2b] text-[#64748b] hover:text-[#cbd5e1] hover:border-[#1e2a3c]"
             }`}
           >
             All Results ({results.length})
@@ -181,65 +181,65 @@ export function SearchPage() {
             <button
               type="button"
               onClick={() => setFilter("transcript")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors ${
                 filter === "transcript"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-[#131d2b] text-muted hover:text-white"
+                  ? "bg-[#051c14] border border-[#0d3b2b] text-[#34d399]"
+                  : "bg-[#080c14] border border-[#151e2b] text-[#64748b] hover:text-[#cbd5e1] hover:border-[#1e2a3c]"
               }`}
             >
-              <Clock size={12} /> Transcript ({transcriptCount})
+              <Clock size={11} /> Transcript ({transcriptCount})
             </button>
           )}
           {titleCount > 0 && (
             <button
               type="button"
               onClick={() => setFilter("title")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors ${
                 filter === "title"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "bg-[#131d2b] text-muted hover:text-white"
+                  ? "bg-[#0d172b] border border-[#162b4d] text-[#60a5fa]"
+                  : "bg-[#080c14] border border-[#151e2b] text-[#64748b] hover:text-[#cbd5e1] hover:border-[#1e2a3c]"
               }`}
             >
-              <FileText size={12} /> Titles ({titleCount})
+              <FileText size={11} /> Titles ({titleCount})
             </button>
           )}
           {participantCount > 0 && (
             <button
               type="button"
               onClick={() => setFilter("participant")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors ${
                 filter === "participant"
-                  ? "bg-amber-600 text-white shadow-sm"
-                  : "bg-[#131d2b] text-muted hover:text-white"
+                  ? "bg-[#1c140a] border border-[#3b2a15] text-amber-400"
+                  : "bg-[#080c14] border border-[#151e2b] text-[#64748b] hover:text-[#cbd5e1] hover:border-[#1e2a3c]"
               }`}
             >
-              <Users size={12} /> Participants ({participantCount})
+              <Users size={11} /> Participants ({participantCount})
             </button>
           )}
           {summaryCount > 0 && (
             <button
               type="button"
               onClick={() => setFilter("summary")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors ${
                 filter === "summary"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-[#131d2b] text-muted hover:text-white"
+                  ? "bg-[#0e1726] border border-[#1e3458] text-[#3b82f6]"
+                  : "bg-[#080c14] border border-[#151e2b] text-[#64748b] hover:text-[#cbd5e1] hover:border-[#1e2a3c]"
               }`}
             >
-              <Sparkles size={12} /> Summary ({summaryCount})
+              <Sparkles size={11} /> Summary ({summaryCount})
             </button>
           )}
           {actionCount > 0 && (
             <button
               type="button"
               onClick={() => setFilter("action_item")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors ${
                 filter === "action_item"
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "bg-[#131d2b] text-muted hover:text-white"
+                  ? "bg-[#14162e] border border-[#202758] text-[#818cf8]"
+                  : "bg-[#080c14] border border-[#151e2b] text-[#64748b] hover:text-[#cbd5e1] hover:border-[#1e2a3c]"
               }`}
             >
-              <ListTodo size={12} /> Action items ({actionCount})
+              <ListTodo size={11} /> Action items ({actionCount})
             </button>
           )}
         </div>
@@ -264,24 +264,24 @@ export function SearchPage() {
               const isSummary = item.matchType === "summary";
               const isParticipant = item.matchType === "participant";
 
-              let badgeBg = "bg-brand/10 text-brand border-brand/20";
+              let badgeBg = "bg-[#0c182b] text-[#60a5fa] border-[#1d3557]";
               let badgeIcon = <FileText size={11} />;
               let badgeLabel = "Meeting Title";
 
               if (isTranscript) {
-                badgeBg = "bg-emerald-950/60 text-emerald-300 border-emerald-500/30";
+                badgeBg = "bg-[#061a14] text-[#34d399] border-[#0c3629]";
                 badgeIcon = <Clock size={11} />;
                 badgeLabel = `Transcript · ${item.timestamp || "Moment"}`;
               } else if (isAction) {
-                badgeBg = "bg-purple-950/60 text-purple-300 border-purple-500/30";
+                badgeBg = "bg-[#0c182b] text-[#93c5fd] border-[#1d3557]";
                 badgeIcon = <ListTodo size={11} />;
                 badgeLabel = "Action Item";
               } else if (isSummary) {
-                badgeBg = "bg-indigo-950/60 text-indigo-300 border-indigo-500/30";
+                badgeBg = "bg-[#0c182b] text-[#60a5fa] border-[#1d3557]";
                 badgeIcon = <Sparkles size={11} />;
                 badgeLabel = "Summary";
               } else if (isParticipant) {
-                badgeBg = "bg-amber-950/60 text-amber-300 border-amber-500/30";
+                badgeBg = "bg-[#1c1708] text-[#fbbf24] border-[#3d3210]";
                 badgeIcon = <Users size={11} />;
                 badgeLabel = "Participant";
               }
@@ -290,7 +290,7 @@ export function SearchPage() {
                 <Link
                   key={item.id}
                   href={item.targetUrl}
-                  className="group block rounded-xl border border-[#23354b] bg-[#0c1421] p-4 transition hover:border-brand/50 hover:bg-[#111c2c] shadow-sm"
+                  className="group block rounded-lg border border-[#131b26] bg-[#070a10] p-4 transition hover:border-[#1e2a3c] hover:bg-[#0a0f17] shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1.5 flex-1 min-w-0">
@@ -302,7 +302,7 @@ export function SearchPage() {
                           {badgeIcon}
                           {badgeLabel}
                         </span>
-                        <span className="text-xs font-semibold text-white group-hover:text-brand transition truncate">
+                        <span className="text-xs font-semibold text-[#f1f5f9] group-hover:text-brand transition truncate">
                           {item.meetingTitle}
                         </span>
                         <span className="text-[11px] text-muted flex items-center gap-1">
@@ -311,9 +311,9 @@ export function SearchPage() {
                       </div>
 
                       {/* Snippet text */}
-                      <div className="text-xs leading-relaxed text-[#c8d6e5]">
+                      <div className="text-xs leading-relaxed text-[#cbd5e1]">
                         {item.speaker && (
-                          <span className="font-semibold text-white mr-1.5">
+                          <span className="font-semibold text-[#f1f5f9] mr-1.5">
                             {item.speaker}:
                           </span>
                         )}
@@ -335,20 +335,20 @@ export function SearchPage() {
           </div>
         </div>
       ) : searchedQuery ? (
-        <div className="rounded-2xl border border-dashed border-[#23354b] p-10 text-center space-y-2">
+        <div className="rounded-lg border border-dashed border-[#151e2b] p-10 text-center space-y-2">
           <Search size={28} className="mx-auto text-muted/60 mb-2" />
-          <h3 className="text-sm font-bold text-white">No matching results found</h3>
+          <h3 className="text-sm font-bold text-[#f1f5f9]">No matching results found</h3>
           <p className="text-xs text-muted max-w-sm mx-auto">
             We couldn&apos;t find any meetings matching &ldquo;{searchedQuery}&rdquo;. Try searching for a different word, speaker name, or topic.
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-[#202f42] bg-[#0c1421] p-8 text-center space-y-4">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-            <Search size={24} />
+        <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-8 text-center space-y-4">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-[#0c182b] text-brand border border-[#1d3557]">
+            <Search size={20} />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-white">Search Your Meetings</h3>
+            <h3 className="text-sm font-bold text-[#f1f5f9]">Search Your Meetings</h3>
             <p className="text-xs text-muted max-w-md mx-auto">
               Find exact moments spoken in any call, look up participants, review summaries, or find assigned action items.
             </p>
@@ -367,7 +367,7 @@ export function SearchPage() {
                   });
                   void fetchResults(example);
                 }}
-                className="rounded-lg border border-[#25394f] bg-[#121c29] px-2.5 py-1 text-xs text-muted hover:border-brand/40 hover:text-white transition"
+                className="rounded-md border border-[#151e2b] bg-[#080c14] px-2.5 py-1 text-xs text-muted hover:border-[#1e2a3c] hover:text-[#f1f5f9] transition"
               >
                 &ldquo;{example}&rdquo;
               </button>

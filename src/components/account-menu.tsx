@@ -53,17 +53,17 @@ export function AccountMenu({ account }: { account: AccountDetails }) {
   }, [open]);
 
   return <div ref={container} className="relative">
-    <button ref={trigger} type="button" aria-label="Account" aria-expanded={open} aria-controls="account-menu" onClick={() => setOpen(!open)} className="flex items-center gap-2 hover:opacity-80 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4b83ff]">
-      <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#2563eb] text-[14px] font-bold text-white">{initials}</span>
-      <ChevronDown size={16} className="text-[#8e9bac]" aria-hidden="true" />
+    <button ref={trigger} type="button" aria-label="Account" aria-expanded={open} aria-controls="account-menu" onClick={() => setOpen(!open)} className="flex items-center gap-2 hover:opacity-80 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3b82f6]">
+      <span className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-[#1d4ed8] text-[13px] font-bold text-white shadow-none">{initials}</span>
+      <ChevronDown size={15} className="text-[#64748b]" aria-hidden="true" />
     </button>
-    <div id="account-menu" hidden={!open} className="absolute right-0 top-full z-50 mt-3 w-[min(288px,calc(100vw-24px))] rounded-lg border border-[#253345] bg-[#101824] py-2 text-[13px] text-[#c0cce0] shadow-[0_12px_32px_rgba(0,0,0,.45)]">
-      <div className="border-b border-[#253345] px-4 pb-3 pt-2">
-        <p className="break-all font-medium text-[#f3f6fc]">{email}</p>
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Current access</span><span className="font-medium text-[#e8eef8]">{trialActive ? "Pro trial" : plan}</span></div>
-        <div className="mt-1 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Pro Trial</span><span className={trialActive ? "font-medium text-[#7badff]" : "text-[#8e9bac]"}>{trialActive ? "Active" : "Ended"}</span></div>
+    <div id="account-menu" hidden={!open} className="absolute right-0 top-full z-50 mt-2.5 w-[min(288px,calc(100vw-24px))] rounded-lg border border-[#151e2b] bg-[#080c14] py-2 text-[13px] text-[#cbd5e1] shadow-[0_12px_36px_rgba(0,0,0,.65)]">
+      <div className="border-b border-[#131b26] px-4 pb-3 pt-2">
+        <p className="break-all font-semibold text-[#f1f5f9]">{email}</p>
+        <div className="mt-2.5 flex items-center justify-between gap-3 text-xs"><span className="text-[#64748b]">Current access</span><span className="font-medium text-[#e2e8f0]">{trialActive ? "Pro trial" : plan}</span></div>
+        <div className="mt-1 flex items-center justify-between gap-3 text-xs"><span className="text-[#64748b]">Pro Trial</span><span className={trialActive ? "font-medium text-[#3b82f6]" : "text-[#64748b]"}>{trialActive ? "Active" : "Ended"}</span></div>
         <div className="mt-1 flex items-center justify-between gap-3 text-xs">
-          <span className="text-[#8e9bac]">Credit balance</span>
+          <span className="text-[#64748b]">Credit balance</span>
           <span className="flex items-center gap-1 font-semibold text-[#fbbf24]">
             <Coins size={13} className="text-[#fbbf24]" />
             <span>{account.credits ?? 0} credit{account.credits === 1 ? "" : "s"}</span>
@@ -71,10 +71,10 @@ export function AccountMenu({ account }: { account: AccountDetails }) {
         </div>
       </div>
       <nav aria-label="Account links" className="py-1">
-        {links.map(({ href, label }) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} onClick={() => setOpen(false)} className="block px-4 py-2 hover:bg-[#1a2433] hover:text-white focus-visible:bg-[#1a2433] focus-visible:text-white">{label}</Link>)}
+        {links.map(({ href, label }) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} onClick={() => setOpen(false)} className="block px-4 py-2 text-xs font-medium text-[#cbd5e1] hover:bg-[#0e1420] hover:text-white transition-colors focus-visible:bg-[#0e1420] focus-visible:text-white">{label}</Link>)}
       </nav>
-      <form action={signOut} className="border-t border-[#253345] pt-1">
-        <button type="submit" className="block w-full px-4 py-2 text-left hover:bg-[#1a2433] hover:text-white focus-visible:bg-[#1a2433] focus-visible:text-white">Logout</button>
+      <form action={signOut} className="border-t border-[#131b26] pt-1">
+        <button type="submit" className="block w-full px-4 py-2 text-left text-xs font-medium text-[#cbd5e1] hover:bg-[#0e1420] hover:text-white transition-colors focus-visible:bg-[#0e1420] focus-visible:text-white">Logout</button>
       </form>
     </div>
   </div>;

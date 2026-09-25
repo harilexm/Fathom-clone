@@ -15,35 +15,35 @@ import { Button, Card, Modal, Tabs } from "@/components/ui";
 
 export function RecordingPlaceholder({ duration, isDemo }: { duration: string; isDemo?: boolean }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-[#131b26] bg-[#06080d]">
       <div
         role="img"
         aria-label={isDemo ? "Demo meeting recording placeholder." : "Uploaded meeting recording placeholder."}
-        className="relative flex aspect-video max-h-[300px] min-h-[180px] items-center justify-center overflow-hidden bg-[#0d1623] sm:min-h-[230px]"
+        className="relative flex aspect-video max-h-[300px] min-h-[180px] items-center justify-center overflow-hidden bg-[#05070c] sm:min-h-[230px]"
       >
         <div className="relative z-10 px-4 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-[#38506a] bg-[#16263a] text-white backdrop-blur">
-            <Play size={18} fill="white" className="ml-0.5" aria-hidden="true" />
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-[#17253d] bg-[#0e1726] text-[#3b82f6]">
+            <Play size={15} fill="currentColor" className="ml-0.5" aria-hidden="true" />
           </div>
-          <p className="text-sm font-semibold text-white">
+          <p className="text-xs font-semibold text-[#f1f5f9]">
             {isDemo ? "Sample recording preview" : "Recording stream unavailable"}
           </p>
-          <p className="mt-1 text-xs text-white/60">
+          <p className="mt-1 text-[11px] text-[#64748b]">
             {isDemo
               ? "This is a sample fixture without an attached video file."
               : "The recording media is stored in Cloudflare R2, but the playback stream is currently unavailable."}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-3 px-4 py-3">
-        <span aria-hidden="true" className="text-[#64768b]">
-          <Play size={18} />
+      <div className="flex items-center gap-3 border-t border-[#131b26] bg-[#070a10] px-4 py-2.5">
+        <span aria-hidden="true" className="text-[#52637a]">
+          <Play size={15} />
         </span>
-        <span className="text-[11px] font-semibold text-muted">00:00</span>
-        <div className="h-1.5 flex-1 rounded-full bg-[#223247]" aria-hidden="true" />
-        <span className="text-[11px] font-semibold text-muted">{duration}</span>
-        <span aria-hidden="true" className="text-[#64768b]">
-          <Maximize2 size={15} />
+        <span className="text-[11px] font-semibold text-[#64748b]">00:00</span>
+        <div className="h-1 flex-1 rounded-full bg-[#131b26]" aria-hidden="true" />
+        <span className="text-[11px] font-semibold text-[#64748b]">{duration}</span>
+        <span aria-hidden="true" className="text-[#52637a]">
+          <Maximize2 size={13} />
         </span>
       </div>
     </Card>
@@ -75,7 +75,7 @@ const RecordingPlayer = forwardRef<HTMLMediaElement, {
   };
 
   return (
-    <Card className="overflow-hidden bg-[#0d1623]">
+    <Card className="overflow-hidden border-[#131b26] bg-[#05070c]">
       {mimeType?.startsWith("audio/") ? (
         <div className="flex min-h-[180px] items-center px-4">
           <audio
@@ -208,11 +208,11 @@ export function PendingContent({
   }
 
   return (
-    <div role="status" className="rounded-xl border border-dashed border-[#2b3b4e] px-4 py-10 text-center">
-      <p className="text-sm font-semibold">{title}</p>
+    <div role="status" className="rounded-xl border border-dashed border-[#151e2b] px-4 py-10 text-center">
+      <p className="text-sm font-semibold text-[#f1f5f9]">{title}</p>
       <p className="mt-2 text-xs text-muted">{message}</p>
       {isTranscribing && type === "transcript" && meeting.sonioxJobId && (
-        <p className="mt-3 inline-block rounded bg-[#101722] px-2.5 py-1 font-mono text-[11px] text-muted border border-[#1e2a3a]">
+        <p className="mt-3 inline-block rounded bg-[#080c14] px-2.5 py-1 font-mono text-[11px] text-muted border border-[#151e2b]">
           Soniox Job ID: {meeting.sonioxJobId}
         </p>
       )}
@@ -240,30 +240,30 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-brand">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#3b82f6]">
             Meeting notes
             {meeting.isDemo && (
-              <span className="rounded bg-[#132b43] px-1.5 py-0.5 text-[10px] font-semibold">Demo</span>
+              <span className="rounded bg-[#0e1420] border border-[#151e2b] px-1.5 py-0.5 text-[9.5px] font-medium text-[#64748b]">Demo</span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="summary-template-select" className="sr-only">Summary Template</label>
-          <div className="flex items-center gap-2 rounded-xl border border-[#2b3b4e] bg-[#172333] px-3 py-1.5 text-xs">
+          <div className="flex items-center gap-2 rounded-md border border-[#151e2b] bg-[#080c14] px-2.5 py-1 text-xs">
             <select
               id="summary-template-select"
               aria-label="Summary template"
               value={selectedTemplate}
               onChange={(e) => setSelectedTemplate(e.target.value as SummaryTemplate)}
-              className="bg-transparent font-semibold text-[#d2dce8] outline-none cursor-pointer"
+              className="bg-transparent font-medium text-[#cbd5e1] outline-none cursor-pointer text-xs"
             >
               {SUMMARY_TEMPLATES.map((tmpl) => (
-                <option key={tmpl.id} value={tmpl.id} className="bg-[#101824] text-[#d2dce8]">
+                <option key={tmpl.id} value={tmpl.id} className="bg-[#080c14] text-[#cbd5e1]">
                   {tmpl.label}
                 </option>
               ))}
             </select>
-            <span className="rounded bg-[#131c2a] px-1.5 py-0.5 text-[10px] font-medium text-[#7fa5dd]">
+            <span className="rounded bg-[#0e1420] border border-[#151e2b] px-1.5 py-0.2 text-[9.5px] font-medium text-[#64748b]">
               0 credits
             </span>
           </div>
@@ -271,55 +271,55 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
       </div>
 
       {selectedTemplate === "executive" && (
-        <div className="rounded-xl border border-[#2b4f70] bg-[#0f2136] p-4 text-xs">
-          <p className="font-bold text-[#7badff] uppercase tracking-wider text-[11px] mb-1">Executive Takeaway</p>
-          <p className="text-[#d2dce8] leading-relaxed">
+        <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-4 text-xs">
+          <p className="font-semibold text-[#3b82f6] uppercase tracking-wider text-[10.5px] mb-1">Executive Takeaway</p>
+          <p className="text-[#cbd5e1] leading-relaxed">
             {meeting.summary.split(".")[0] ? `${meeting.summary.split(".")[0]}.` : meeting.summary} Key decisions require immediate follow-up across {meeting.actions.length} action items.
           </p>
         </div>
       )}
 
       {selectedTemplate === "sales" && (
-        <div className="rounded-xl border border-[#2b4f70] bg-[#0f2136] p-4 text-xs">
-          <p className="font-bold text-[#36d2a0] uppercase tracking-wider text-[11px] mb-1">Customer & Discovery Context</p>
-          <p className="text-[#d2dce8] leading-relaxed">
+        <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-4 text-xs">
+          <p className="font-semibold text-[#34d399] uppercase tracking-wider text-[10.5px] mb-1">Customer & Discovery Context</p>
+          <p className="text-[#cbd5e1] leading-relaxed">
             Core discussion centered on stakeholder requirements, budget considerations, and project timelines. Follow-ups identified: {meeting.actions.length} next steps.
           </p>
         </div>
       )}
 
       {selectedTemplate === "technical" && (
-        <div className="rounded-xl border border-[#2b4f70] bg-[#0f2136] p-4 text-xs">
-          <p className="font-bold text-[#b274ff] uppercase tracking-wider text-[11px] mb-1">Technical Architecture & Decisions</p>
-          <p className="text-[#d2dce8] leading-relaxed">
+        <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-4 text-xs">
+          <p className="font-semibold text-[#818cf8] uppercase tracking-wider text-[10.5px] mb-1">Technical Architecture & Decisions</p>
+          <p className="text-[#cbd5e1] leading-relaxed">
             Technical synchronization covering systems design, integrations, and milestone deliverables. Review action items for implementation details.
           </p>
         </div>
       )}
 
-      <p className="rounded-xl border border-[#2b4f70] bg-[#122235] p-4 text-sm leading-7 text-[#d2dce8]">{meeting.summary}</p>
+      <p className="rounded-lg border border-[#131b26] bg-[#070a10] p-4 text-sm leading-relaxed text-[#cbd5e1]">{meeting.summary}</p>
       {meeting.overview.length > 0 && (
         <section>
-          <h3 className="mb-4 text-sm font-bold">Discussion overview</h3>
-          <div className="space-y-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#64748b]">Discussion overview</h3>
+          <div className="space-y-3">
             {meeting.overview.map((point, index) => (
               <div key={point} className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#132b43] text-[11px] font-bold text-brand">{index + 1}</span>
-                <p className="pt-0.5 text-[13px] leading-6 text-[#acbbcc]">{point}</p>
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#17253d] bg-[#0e1726] text-[10px] font-bold text-[#3b82f6]">{index + 1}</span>
+                <p className="pt-0.5 text-[13px] leading-relaxed text-[#94a3b8]">{point}</p>
               </div>
             ))}
           </div>
         </section>
       )}
-      <div className="grid gap-4 border-t border-[#253345] pt-6 sm:grid-cols-2">
+      <div className="grid gap-3 border-t border-[#131b26] pt-5 sm:grid-cols-2">
         {[
           { id: "actions", label: "Action items", count: meeting.actions.length, action: "View follow-ups", icon: ListTodo },
           { id: "highlights", label: "Highlights", count: meeting.highlights.length, action: "View moments", icon: Bookmark }
         ].map(({ id, label, count, action, icon: Icon }) => (
-          <div key={id} className="rounded-xl border border-[#2b3b4e] p-4">
-            <div className="mb-2 flex items-center gap-2 text-brand"><Icon size={16} /><span className="text-xs font-bold">{label}</span></div>
-            <p className="text-2xl font-bold">{count}</p>
-            <button type="button" onClick={() => onTabChange(id)} className="mt-2 flex items-center gap-1 text-xs font-semibold text-brand hover:underline">{action} <ChevronRight size={13} /></button>
+          <div key={id} className="rounded-lg border border-[#151e2b] bg-[#080c14] p-4">
+            <div className="mb-1.5 flex items-center gap-2 text-[#3b82f6]"><Icon size={15} /><span className="text-xs font-semibold">{label}</span></div>
+            <p className="text-xl font-bold text-[#f1f5f9]">{count}</p>
+            <button type="button" onClick={() => onTabChange(id)} className="mt-2 flex items-center gap-1 text-xs font-medium text-[#3b82f6] hover:underline transition">{action} <ChevronRight size={12} /></button>
           </div>
         ))}
       </div>
@@ -379,20 +379,20 @@ export function TranscriptPanel({
           <p className="text-xs text-muted">{turns.length} {meeting.isDemo ? "sample turns" : "turns"} · {speakers.length} speakers</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <div className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-[#23354b] bg-[#111a27] px-3 text-muted focus-within:border-[#4b83ff]/60 focus-within:ring-1 focus-within:ring-[#4b83ff]/30">
-            <Search size={14} className="shrink-0 text-[#7a8ea5]" />
+          <div className="flex h-8 min-w-0 items-center gap-2 rounded-md border border-[#151e2b] bg-[#080c14] px-2.5 text-[#cbd5e1] focus-within:border-[#2563eb] focus-within:ring-1 focus-within:ring-[#2563eb]/20 transition-all">
+            <Search size={13} className="shrink-0 text-[#52637a]" />
             <input
               value={query}
               onChange={(event) => { setQuery(event.target.value); setLimit(24); }}
               placeholder="Search transcript"
               aria-label="Search transcript"
-              className="min-w-0 flex-1 bg-transparent text-xs text-[#e5effa] outline-none placeholder:text-[#6c8299] sm:w-44"
+              className="min-w-0 flex-1 bg-transparent text-xs text-[#f1f5f9] outline-none placeholder:text-[#475569] sm:w-44"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="text-xs text-muted hover:text-white"
+                className="text-xs text-[#64748b] hover:text-[#f1f5f9] transition-colors"
                 aria-label="Clear transcript search"
               >
                 ×
@@ -403,19 +403,19 @@ export function TranscriptPanel({
             aria-label="Filter transcript by speaker"
             value={speaker}
             onChange={(event) => { setSpeaker(event.target.value); setLimit(24); }}
-            className="h-9 max-w-full rounded-lg border border-[#23354b] bg-[#111a27] px-3 text-xs text-[#c0d2e5] outline-none focus:border-[#4b83ff]/60 cursor-pointer"
+            className="h-8 max-w-full rounded-md border border-[#151e2b] bg-[#080c14] px-2.5 text-xs text-[#cbd5e1] outline-none focus:border-[#2563eb] cursor-pointer"
           >
-            <option value="all" className="bg-[#111a27] text-[#c0d2e5]">All speakers</option>
-            {speakers.map((name) => <option key={name} value={name} className="bg-[#111a27] text-[#c0d2e5]">{name}</option>)}
+            <option value="all" className="bg-[#080c14] text-[#cbd5e1]">All speakers</option>
+            {speakers.map((name) => <option key={name} value={name} className="bg-[#080c14] text-[#cbd5e1]">{name}</option>)}
           </select>
         </div>
       </div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p role="status" aria-live="polite" className="text-[11px] text-muted">Showing {shown.length} of {visible.length} matching turns · {turns.length} total</p>
+        <p role="status" aria-live="polite" className="text-[11px] text-[#64748b]">Showing {shown.length} of {visible.length} matching turns · {turns.length} total</p>
         {visible.length > 8 && (
           <div className="hidden gap-3 lg:flex">
-            <button type="button" onClick={() => scrollArea.current?.scrollTo({ top: 0, behavior: "smooth" })} className="text-[11px] font-semibold text-brand hover:underline">Start</button>
-            <button type="button" onClick={() => { setLimit(visible.length); requestAnimationFrame(() => scrollArea.current?.scrollTo({ top: scrollArea.current.scrollHeight, behavior: "smooth" })); }} className="text-[11px] font-semibold text-brand hover:underline">Latest</button>
+            <button type="button" onClick={() => scrollArea.current?.scrollTo({ top: 0, behavior: "smooth" })} className="text-[11px] font-semibold text-[#3b82f6] hover:underline">Start</button>
+            <button type="button" onClick={() => { setLimit(visible.length); requestAnimationFrame(() => scrollArea.current?.scrollTo({ top: scrollArea.current.scrollHeight, behavior: "smooth" })); }} className="text-[11px] font-semibold text-[#3b82f6] hover:underline">Latest</button>
           </div>
         )}
       </div>
@@ -430,18 +430,18 @@ export function TranscriptPanel({
             <li
               key={turn.id}
               data-jump={isJumpMatch ? "true" : undefined}
-              className={"group flex gap-3 rounded-xl px-2 py-4 transition " + (isJumpMatch ? "bg-[#182a40] border border-brand/60 ring-2 ring-brand/30 shadow-lg" : "hover:bg-[#152233]")}
+              className={"group flex gap-3 rounded-lg px-2.5 py-3 transition-colors duration-150 " + (isJumpMatch ? "bg-[#0e1726] border border-[#1e3458] ring-1 ring-[#2563eb]/30" : "hover:bg-[#090d15]")}
             >
-              <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold " + turn.color}>{turn.initials}</span>
+              <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-bold border border-[#070a10] " + turn.color}>{turn.initials}</span>
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold">{turn.speaker}</span>
+                    <span className="text-xs font-semibold text-[#f1f5f9]">{turn.speaker}</span>
                     {onSeek && turn.startTimeSec !== undefined ? (
                       <button
                         type="button"
                         onClick={() => onSeek(turn.startTimeSec!)}
-                        className="whitespace-nowrap text-[11px] font-semibold text-brand/70 transition hover:text-brand hover:underline"
+                        className="whitespace-nowrap text-[11px] font-semibold text-[#3b82f6] transition hover:underline"
                         aria-label={`Seek to ${turn.time}`}
                         title={`Jump to ${turn.time}`}
                       >
@@ -742,27 +742,27 @@ export function HighlightsPanel({
         if ((e.target as HTMLElement).closest("button")) return;
         if (onSeek && item.startTimeSec !== undefined) onSeek(item.startTimeSec);
       }}
-      className={`group flex min-w-0 flex-col gap-2 rounded-xl border border-[#2b3b4e] bg-[#121c29]/40 p-4 transition hover:border-[#38506a] hover:bg-[#152334]/60 ${
+      className={`group flex min-w-0 flex-col gap-2 rounded-lg border border-[#131b26] bg-[#070a10] p-3.5 transition-colors duration-150 hover:border-[#1e2a3c] hover:bg-[#0a0f17] ${
         onSeek && item.startTimeSec !== undefined ? "cursor-pointer" : ""
       }`}
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 items-start gap-2.5">
           <span
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-              isUser ? "bg-amber-950/60 text-amber-300 border border-amber-500/30" : "bg-[#132b43] text-brand"
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+              isUser ? "bg-[#1c140a] text-amber-400 border border-[#3b2a15]" : "bg-[#0e1726] text-[#3b82f6] border border-[#17253d]"
             }`}
           >
-            <Bookmark size={15} />
+            <Bookmark size={14} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="break-words text-[13px] font-bold text-white">{item.title}</p>
+              <p className="break-words text-[13px] font-semibold text-[#f1f5f9]">{item.title}</p>
               <span
-                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                className={`rounded px-1.5 py-0.2 text-[9.5px] font-medium ${
                   isUser
-                    ? "bg-amber-950/70 text-amber-300 border border-amber-500/30"
-                    : "bg-[#1a2d42] text-[#8cb4db]"
+                    ? "bg-[#1c140a] text-amber-400 border border-[#3b2a15]"
+                    : "bg-[#0e1420] text-[#8fa0b5] border border-[#151e2b]"
                 }`}
               >
                 {item.kind}
@@ -771,32 +771,32 @@ export function HighlightsPanel({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           {onSeek && item.startTimeSec !== undefined ? (
             <button
               type="button"
               onClick={() => onSeek(item.startTimeSec!)}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#223247] px-2.5 py-1 text-[11px] font-semibold text-brand/90 transition hover:bg-[#2e425a] hover:text-brand"
+              className="inline-flex items-center gap-1 rounded-md bg-[#0e1420] border border-[#16202e] px-2 py-0.5 text-[11px] font-medium text-[#cbd5e1] transition-colors hover:text-[#3b82f6] hover:border-[#1e2b3e]"
               aria-label={`Seek to ${item.time}`}
               title={`Jump to ${item.time}`}
             >
-              <Play size={10} fill="currentColor" />
+              <Play size={9} fill="currentColor" />
               <span>{item.time}</span>
-              {item.endTime && <span className="text-muted"> - {item.endTime}</span>}
+              {item.endTime && <span className="text-[#64748b]"> - {item.endTime}</span>}
             </button>
           ) : (
-            <span className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-[#acbbcc]">{item.time}</span>
+            <span className="shrink-0 rounded-md bg-[#0e1420] border border-[#16202e] px-2 py-0.5 text-[11px] font-medium text-[#64748b]">{item.time}</span>
           )}
 
           {onShareHighlight && !meeting.isDemo && (
             <button
               type="button"
               onClick={() => onShareHighlight(item)}
-              className="rounded-lg p-1.5 text-muted transition hover:bg-[#203043] hover:text-brand"
+              className="rounded-md p-1.5 text-[#64748b] transition-colors hover:bg-[#0e1420] hover:text-[#3b82f6]"
               title="Share this highlight"
               aria-label={`Share highlight: ${item.title}`}
             >
-              <Share2 size={14} />
+              <Share2 size={13} />
             </button>
           )}
 
@@ -805,19 +805,19 @@ export function HighlightsPanel({
               type="button"
               onClick={() => handleDelete(item.id)}
               disabled={deletingId === item.id}
-              className="rounded-lg p-1.5 text-muted transition hover:bg-rose-950/50 hover:text-rose-400 disabled:opacity-50"
+              className="rounded-md p-1.5 text-[#64748b] transition-colors hover:bg-[#200c11] hover:text-rose-400 disabled:opacity-50"
               title="Delete this highlight"
               aria-label={`Delete highlight: ${item.title}`}
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
             </button>
           )}
         </div>
       </div>
 
       {item.text && (
-        <div className="mt-1 rounded-lg border-l-2 border-brand/50 bg-[#0c131c]/60 px-3 py-2">
-          <p className="text-xs italic leading-5 text-[#b0c0d4]">&ldquo;{item.text}&rdquo;</p>
+        <div className="mt-1 rounded-md border-l-2 border-[#2563eb] bg-[#05070c] px-3 py-1.5">
+          <p className="text-xs italic leading-relaxed text-[#94a3b8]">&ldquo;{item.text}&rdquo;</p>
         </div>
       )}
     </div>
@@ -1150,16 +1150,16 @@ export function ShareModal({
 
           {/* Link display & actions when active */}
           {isAnyone && previewPath ? (
-            <div className="rounded-xl border border-[#22354a] bg-[#101926] p-4 text-xs space-y-3">
+            <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-3.5 text-xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-brand flex items-center gap-1.5">
-                  <Check size={14} className="text-[#6cd3a5]" /> Active secure link
+                <span className="font-semibold text-[#3b82f6] flex items-center gap-1.5">
+                  <Check size={13} className="text-emerald-400" /> Active secure link
                 </span>
                 <button
                   type="button"
                   disabled={isUpdating}
                   onClick={() => handleToggleAccess("only_me")}
-                  className="text-[11px] text-muted hover:text-rose-400 transition underline"
+                  className="text-[11px] text-[#64748b] hover:text-rose-400 transition underline"
                 >
                   Revoke link
                 </button>
@@ -1170,7 +1170,7 @@ export function ShareModal({
                   type="text"
                   readOnly
                   value={typeof window !== "undefined" ? window.location.origin + previewPath : previewPath}
-                  className="flex-1 rounded-lg border border-[#2b3d54] bg-[#0c1421] px-3 py-2 text-xs font-mono text-[#c8d6e5] focus:outline-none"
+                  className="flex-1 rounded-md border border-[#151e2b] bg-[#05070c] px-3 py-1.5 text-xs font-mono text-[#cbd5e1] focus:outline-none"
                 />
                 <Button
                   size="sm"
@@ -1178,26 +1178,26 @@ export function ShareModal({
                   onClick={copyShareLink}
                   className="shrink-0 flex items-center gap-1"
                 >
-                  {copyState === "copied" ? <Check size={14} /> : <Copy size={14} />}
+                  {copyState === "copied" ? <Check size={13} /> : <Copy size={13} />}
                   <span>{copyState === "copied" ? "Copied!" : "Copy"}</span>
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-muted pt-1">
+              <div className="flex items-center justify-between text-[11px] text-[#64748b] pt-0.5">
                 <span>Opens directly without login</span>
                 <Link
                   href={previewPath}
                   target="_blank"
-                  className="inline-flex items-center gap-1 font-semibold text-brand hover:underline"
+                  className="inline-flex items-center gap-1 font-medium text-[#3b82f6] hover:underline"
                 >
                   Open public page <ExternalLink size={11} />
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-[#23354b] p-4 text-center text-xs text-muted">
-              <Lock size={18} className="mx-auto mb-1.5 text-muted/60" />
-              <p className="font-semibold text-white">This content is private</p>
+            <div className="rounded-lg border border-dashed border-[#151e2b] bg-[#05070c] p-4 text-center text-xs text-[#64748b]">
+              <Lock size={16} className="mx-auto mb-1.5 text-[#52637a]" />
+              <p className="font-semibold text-[#f1f5f9]">This content is private</p>
               <p className="mt-0.5 text-[11px]">Select &ldquo;Anyone with link&rdquo; above to generate a secure share link.</p>
             </div>
           )}
@@ -1458,38 +1458,38 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
   const statusLower = currentMeeting.status?.toLowerCase();
   const badgeClasses =
     statusLower === "transcribing"
-      ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
+      ? "bg-[#0d172b] text-[#60a5fa] border border-[#162b4d]"
       : statusLower === "analyzing"
-        ? "bg-indigo-950/60 text-indigo-300 border border-indigo-500/30"
+        ? "bg-[#0e1a33] text-[#7ea5e8] border border-[#1a315e]"
         : statusLower === "ready" || statusLower === "completed"
-          ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
+          ? "bg-[#051c14] text-[#34d399] border border-[#0d3b2b]"
           : statusLower === "failed"
-            ? "bg-rose-950/60 text-rose-300 border border-rose-500/30"
-            : "bg-[#132b43] text-brand";
+            ? "bg-[#240c11] text-[#f87171] border border-[#481822]"
+            : "bg-[#0d131d] text-[#94a3b8] border border-[#172232]";
 
   return (
     <div className="fade-in min-w-0">
       <div className="mb-3 flex items-center justify-between gap-3">
         <Link
           href="/my-calls"
-          className="inline-flex items-center gap-2 rounded-lg py-1 text-sm font-semibold text-[#9ab1cb] transition hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-md py-1 text-xs font-semibold text-[#64748b] transition-colors hover:text-[#f1f5f9]"
           aria-label="Back to calls"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={16} />
           <span>Back</span>
         </Link>
       </div>
 
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 space-y-2.5">
-          <h1 className="max-w-4xl break-words text-[22px] font-bold leading-tight tracking-tight text-white sm:text-[26px]">
+        <div className="min-w-0 flex-1 space-y-2">
+          <h1 className="max-w-4xl break-words text-[22px] font-bold leading-tight tracking-tight text-[#f1f5f9] sm:text-[24px]">
             {currentMeeting.title}
           </h1>
 
           {/* Unified metadata bar underneath the video title */}
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-[#8da3be]">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-[#64748b]">
             {!currentMeeting.isDemo && (
-              <span role="status" className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${badgeClasses}`}>
+              <span role="status" className={`inline-flex items-center rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider ${badgeClasses}`}>
                 {currentMeeting.status}
               </span>
             )}
@@ -1499,7 +1499,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                 type="button"
                 onClick={handleStartTranscription}
                 disabled={isTranscribingLoading}
-                className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded bg-[#2563eb] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#1d4ed8] shadow-none disabled:opacity-50"
                 title={currentMeeting.creditsRequired ? `Requires ${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"} to process` : undefined}
               >
                 {isTranscribingLoading
@@ -1513,7 +1513,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                 type="button"
                 onClick={handleCheckProgress}
                 disabled={isCheckingProgress}
-                className="inline-flex items-center gap-1.5 rounded bg-[#223247] hover:bg-[#2e425a] px-2.5 py-1 text-xs font-semibold text-[#b8d0e8] transition disabled:opacity-60 border border-[#38506a]"
+                className="inline-flex items-center gap-1.5 rounded bg-[#0e1420] hover:bg-[#131b29] px-2.5 py-1 text-xs font-medium text-[#cbd5e1] transition-colors disabled:opacity-50 border border-[#151e2b]"
               >
                 {isCheckingProgress ? "Checking status..." : "Check progress"}
               </button>
@@ -1524,21 +1524,21 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                 type="button"
                 onClick={handleRunAnalysis}
                 disabled={isAnalyzingLoading}
-                className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded bg-[#2563eb] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#1d4ed8] shadow-none disabled:opacity-50"
               >
                 {isAnalyzingLoading ? "Analyzing..." : "Run AI Analysis"}
               </button>
             )}
 
-            <span className="text-[#3b5068]">·</span>
+            <span className="text-[#202c3d]">·</span>
             <span suppressHydrationWarning>{currentMeeting.date}</span>
-            <span className="text-[#3b5068]">·</span>
+            <span className="text-[#202c3d]">·</span>
             <span suppressHydrationWarning>{currentMeeting.time}</span>
-            <span className="text-[#3b5068]">·</span>
+            <span className="text-[#202c3d]">·</span>
             <span>{meetingDuration}</span>
 
-            <span className="text-[#3b5068]">·</span>
-            <div className="inline-flex items-center gap-1.5 text-muted">
+            <span className="text-[#202c3d]">·</span>
+            <div className="inline-flex items-center gap-1.5 text-[#64748b]">
               <ParticipantAvatars people={currentMeeting.attendees} maxVisible={4} />
               <span>
                 {currentMeeting.attendees.length} {currentMeeting.attendees.length === 1 ? "participant" : "participants"}
@@ -1547,7 +1547,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
           </div>
 
           {transcribeError && (
-            <div role="alert" className="mt-2.5 flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-950/40 p-2.5 text-xs text-rose-300">
+            <div role="alert" className="mt-2.5 flex items-start gap-2 rounded-md border border-[#481822] bg-[#1a0c10] p-2.5 text-xs text-rose-400">
               <span className="shrink-0 font-bold" aria-hidden="true">⚠️</span>
               <p className="leading-snug">{transcribeError}</p>
             </div>
@@ -1555,8 +1555,8 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={handleOpenShareMeeting} className="h-9 px-3.5 text-xs font-semibold">
-            <Share2 size={14} /> Share
+          <Button variant="secondary" size="sm" onClick={handleOpenShareMeeting} className="h-8 px-3 text-xs font-semibold">
+            <Share2 size={13} /> Share
           </Button>
         </div>
       </div>
@@ -1566,8 +1566,8 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
           ) : (
             <RecordingPlaceholder duration={meetingDuration} isDemo={meeting.isDemo} />
           )}
-          <Card className="min-w-0 overflow-hidden">
-            <div className="border-b border-[#253345] px-4 pt-3 sm:px-5">
+          <Card className="min-w-0 overflow-hidden border-[#131b26] bg-[#070a10]">
+            <div className="border-b border-[#131b26] px-4 pt-3 sm:px-5">
               <Tabs idBase="meeting-content" label="Meeting content" value={tab} onChange={setTab} items={[
                 { id: "summary", label: "Summary" },
                 { id: "transcript", label: "Transcript" },

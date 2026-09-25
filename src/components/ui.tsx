@@ -11,17 +11,17 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = "primary", size = "md", className = "", children, type = "button", ...props }, ref) {
   const variants = {
-    primary: "bg-brand text-[#07111e] hover:bg-[#7bbcff]",
-    secondary: "border border-[#1e2a3a] bg-[#0f1520] text-ink hover:bg-[#141c29]",
-    ghost: "text-muted hover:bg-[#0f1520] hover:text-ink",
-    dark: "bg-[#141c29] text-ink hover:bg-[#1a2535]"
+    primary: "bg-[#2563eb] text-white hover:bg-[#1d4ed8] shadow-none focus-visible:outline-[#3b82f6]",
+    secondary: "border border-[#151e2b] bg-[#080c14] text-[#cbd5e1] hover:bg-[#0e1420] hover:border-[#1e2a3c] hover:text-white",
+    ghost: "text-[#64748b] hover:bg-[#0e1420] hover:text-[#f1f5f9]",
+    dark: "border border-[#151e2b] bg-[#0e1420] text-[#cbd5e1] hover:bg-[#131b29] hover:text-white"
   };
-  const sizing = size === "sm" ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm";
+  const sizing = size === "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm";
   return (
     <button
       ref={ref}
       type={type}
-      className={"inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50 " + sizing + " " + variants[variant] + " " + className}
+      className={"inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 " + sizing + " " + variants[variant] + " " + className}
       {...props}
     >
       {children}
@@ -49,7 +49,7 @@ export function Tabs({ items, value, onChange, idBase, label = "Sections" }: { i
     refs.current[next]?.focus();
   }
   return (
-    <div role="tablist" aria-label={label} className="flex min-w-0 gap-5 overflow-x-auto border-b border-[#1a2433] sm:gap-6">
+    <div role="tablist" aria-label={label} className="flex min-w-0 gap-5 overflow-x-auto border-b border-[#131b26] sm:gap-6">
       {items.map((item, index) => (
         <button
           key={item.id}
@@ -62,11 +62,11 @@ export function Tabs({ items, value, onChange, idBase, label = "Sections" }: { i
           tabIndex={value === item.id ? 0 : -1}
           onKeyDown={(event) => onKeyDown(event, index)}
           onClick={() => onChange(item.id)}
-          className={"relative shrink-0 pb-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand " + (value === item.id ? "text-brand" : "text-muted hover:text-ink")}
+          className={"relative shrink-0 pb-3 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3b82f6] " + (value === item.id ? "text-[#3b82f6]" : "text-[#64748b] hover:text-[#cbd5e1]")}
         >
           {item.label}
           {item.count !== undefined && <span className="ml-1.5 text-xs opacity-70">{item.count}</span>}
-          {value === item.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-brand" />}
+          {value === item.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[#2563eb]" />}
         </button>
       ))}
     </div>
@@ -118,7 +118,7 @@ export function Dropdown({ label, items, showChevron = true, variant = "secondar
         {label}{showChevron && <ChevronDown size={14} />}
       </Button>
       {open && (
-        <div ref={menu} id={id} role="menu" onKeyDown={onMenuKeyDown} className="absolute right-0 z-30 mt-2 min-w-48 rounded-lg border border-[#1e2a3a] bg-[#0f1520] p-1.5 shadow-[0_12px_24px_rgba(0,0,0,.3)]">
+        <div ref={menu} id={id} role="menu" onKeyDown={onMenuKeyDown} className="absolute right-0 z-30 mt-1.5 min-w-48 rounded-lg border border-[#151e2b] bg-[#080c14] p-1.5 shadow-[0_8px_24px_rgba(0,0,0,.6)]">
           {items.map((item) => (
             <button
               key={item.label}
@@ -126,7 +126,7 @@ export function Dropdown({ label, items, showChevron = true, variant = "secondar
               role="menuitem"
               disabled={item.disabled}
               onClick={() => { item.onClick?.(); setOpen(false); trigger.current?.focus(); }}
-              className="block w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-[#141c29] focus:bg-[#141c29] disabled:cursor-not-allowed disabled:text-[#556376]"
+              className="block w-full rounded-md px-3 py-1.5 text-left text-xs text-[#cbd5e1] hover:bg-[#0e1420] hover:text-white focus:bg-[#0e1420] focus:text-white transition-colors disabled:cursor-not-allowed disabled:text-[#475569]"
             >
               {item.label}
             </button>
@@ -169,11 +169,11 @@ export function Modal({ title, open, onClose, children, footer }: { title: strin
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-xl bg-[#0f1520] p-6 shadow-[0_16px_32px_rgba(0,0,0,.4)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-xl border border-[#151e2b] bg-[#080c14] p-6 shadow-[0_16px_40px_rgba(0,0,0,.7)] text-[#f1f5f9]">
         <div className="mb-5 flex items-center justify-between">
-          <h2 id={titleId} className="text-lg font-bold">{title}</h2>
-          <button ref={closeButton} type="button" aria-label="Close dialog" onClick={onClose} className="rounded-md p-1.5 hover:bg-[#141c29]"><X size={18} /></button>
+          <h2 id={titleId} className="text-base font-bold text-[#f1f5f9]">{title}</h2>
+          <button ref={closeButton} type="button" aria-label="Close dialog" onClick={onClose} className="rounded-md p-1.5 text-[#64748b] hover:bg-[#0e1420] hover:text-white transition-colors"><X size={17} /></button>
         </div>
         <div>{children}</div>
         {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
@@ -186,9 +186,9 @@ export function PageHeader({ eyebrow, title, description, action }: { eyebrow?: 
   return (
     <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-2 text-xs font-bold uppercase tracking-[.16em] text-brand">{eyebrow}</p>}
-        <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{title}</h1>
-        {description && <p className="mt-2 text-sm text-muted">{description}</p>}
+        {eyebrow && <p className="mb-1.5 text-xs font-bold uppercase tracking-[.14em] text-[#3b82f6]">{eyebrow}</p>}
+        <h1 className="text-xl font-semibold tracking-tight text-[#f1f5f9] sm:text-2xl">{title}</h1>
+        {description && <p className="mt-1.5 text-xs text-[#64748b]">{description}</p>}
       </div>
       {action}
     </header>
@@ -196,13 +196,13 @@ export function PageHeader({ eyebrow, title, description, action }: { eyebrow?: 
 }
 
 export function LoadingState({ label = "Loading…" }: { label?: string }) {
-  return <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center gap-3 text-sm text-muted"><LoaderCircle className="animate-spin text-brand" size={24} />{label}</div>;
+  return <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center gap-3 text-xs text-[#64748b]"><LoaderCircle className="animate-spin text-[#3b82f6]" size={22} />{label}</div>;
 }
 
 export function EmptyState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
-  return <Card className="flex min-h-64 flex-col items-center justify-center px-6 py-10 text-center"><div className="mb-4 rounded-xl bg-[#0d1a2b] p-3 text-brand">{icon}</div><h2 className="text-lg font-bold">{title}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-muted">{description}</p>{action && <div className="mt-5">{action}</div>}</Card>;
+  return <Card className="flex min-h-64 flex-col items-center justify-center border-[#131b26] bg-[#070a10] px-6 py-10 text-center"><div className="mb-3.5 flex h-10 w-10 items-center justify-center rounded-lg border border-[#17253d] bg-[#0e1726] text-[#3b82f6]">{icon}</div><h2 className="text-base font-bold text-[#f1f5f9]">{title}</h2><p className="mt-1.5 max-w-sm text-xs leading-relaxed text-[#64748b]">{description}</p>{action && <div className="mt-4">{action}</div>}</Card>;
 }
 
 export function ErrorState({ title = "Something went wrong", description = "Please try again.", action }: { title?: string; description?: string; action?: ReactNode }) {
-  return <Card role="alert" className="border-[#3d1a24] bg-[#1a0e14] p-8 text-center"><h2 className="font-bold text-[#ff9aa6]">{title}</h2><p className="mt-2 text-sm text-muted">{description}</p>{action && <div className="mt-4">{action}</div>}</Card>;
+  return <Card role="alert" className="border-[#38151c] bg-[#1a0c10] p-6 text-center"><h2 className="font-semibold text-rose-400">{title}</h2><p className="mt-1.5 text-xs text-[#8fa0b5]">{description}</p>{action && <div className="mt-4">{action}</div>}</Card>;
 }

@@ -78,18 +78,18 @@ export default function FAQsPage() {
     <div className="min-h-full py-8 px-4 sm:px-6">
       <section aria-label="Frequently Asked Questions" className="fade-in mx-auto max-w-3xl space-y-8">
         {/* Header */}
-        <div className="border-b border-[#1e2a3a] pb-6">
+        <div className="border-b border-[#131b26] pb-6">
           <Link
             href="/my-calls"
-            className="mb-3 inline-flex items-center text-xs font-semibold text-[#8da3be] hover:text-white transition"
+            className="mb-3 inline-flex items-center text-xs font-semibold text-muted hover:text-[#f1f5f9] transition"
           >
             ← Back to Calls
           </Link>
           <p className="text-[11px] font-bold uppercase tracking-wider text-brand">Help &amp; Documentation</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#f1f5f9] sm:text-3xl">
             Frequently Asked Questions
           </h1>
-          <p className="mt-1.5 text-xs text-[#8da3be]">
+          <p className="mt-1.5 text-xs text-muted">
             Everything you need to know about processing recordings, AI notes, sharing, and workspace credits.
           </p>
         </div>
@@ -98,16 +98,16 @@ export default function FAQsPage() {
         <div className="space-y-8">
           {faqCategories.map((category) => (
             <div key={category.title} className="space-y-3">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#8da3be] px-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted px-1">
                 {category.title}
               </h2>
-              <div className="surface rounded-2xl border border-[#223348] divide-y divide-[#1e2d3f] overflow-hidden shadow-sm">
+              <div className="rounded-xl border border-[#131b26] bg-[#070a10] divide-y divide-[#131b26] overflow-hidden shadow-sm">
                 {category.items.map((item) => (
-                  <div key={item.question} className="p-5 sm:p-6 transition hover:bg-[#121c2a]/40">
-                    <h3 className="text-sm font-semibold text-white">
+                  <div key={item.question} className="p-5 sm:p-6 transition hover:bg-[#0a0f17]">
+                    <h3 className="text-sm font-semibold text-[#f1f5f9]">
                       {item.question}
                     </h3>
-                    <p className="mt-2 text-xs leading-relaxed text-[#9ab0c7]">
+                    <p className="mt-2 text-xs leading-relaxed text-[#cbd5e1]">
                       {item.answer}
                     </p>
                   </div>
@@ -118,15 +118,15 @@ export default function FAQsPage() {
         </div>
 
         {/* Bottom Help Notice */}
-        <div className="rounded-2xl border border-[#202d3d] bg-[#0c131e] p-6 text-center">
-          <h3 className="text-sm font-semibold text-white">Have more questions?</h3>
-          <p className="mt-1.5 text-xs text-[#8da3be]">
+        <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-6 text-center">
+          <h3 className="text-sm font-semibold text-[#f1f5f9]">Have more questions?</h3>
+          <p className="mt-1.5 text-xs text-muted">
             Use the Ask Fathom assistant on any meeting or explore your workspace settings.
           </p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <Link
               href="/settings"
-              className="rounded-lg border border-[#2b3b4e] bg-[#141f2e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1c2a3d] transition"
+              className="rounded-lg border border-[#151e2b] bg-[#080c14] px-4 py-2 text-xs font-semibold text-[#cbd5e1] hover:border-[#1e2a3c] hover:bg-[#0d131d] hover:text-[#f1f5f9] transition"
             >
               Open Settings
             </Link>

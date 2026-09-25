@@ -45,10 +45,10 @@ export function FathomLogo({
   const content = (
     <span className={`inline-flex shrink-0 items-center gap-3 font-bold text-white ${barSizes.text} ${className}`}>
       <span aria-hidden="true" className={`flex items-center ${barSizes.gap}`}>
-        <span className={`${barSizes.b1} rounded-full bg-[#4b83ff]`} />
-        <span className={`${barSizes.b2} rounded-full bg-[#7badff]`} />
-        <span className={`${barSizes.b3} rounded-full bg-[#4b83ff]`} />
-        <span className={`${barSizes.b4} rounded-full bg-[#4b83ff]`} />
+        <span className={`${barSizes.b1} rounded-full bg-[#2563eb]`} />
+        <span className={`${barSizes.b2} rounded-full bg-[#3b82f6]`} />
+        <span className={`${barSizes.b3} rounded-full bg-[#2563eb]`} />
+        <span className={`${barSizes.b4} rounded-full bg-[#1d4ed8]`} />
       </span>
       <span>FATHOM</span>
     </span>
