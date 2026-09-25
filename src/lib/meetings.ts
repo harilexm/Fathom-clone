@@ -69,7 +69,10 @@ export interface DbMeetingRecord {
     title: string;
     start_timestamp: number;
     start_time: number;
+    end_timestamp?: number;
+    end_time?: number;
     kind?: string | null;
+    text?: string | null;
   }>;
   share_links?: Array<{
     id: string;
@@ -133,7 +136,7 @@ export function getLatestRecording(dbMeeting: DbMeetingRecord) {
     .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
 }
 
-function formatTimestamp(seconds: number): string {
+export function formatTimestamp(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
@@ -223,13 +226,43 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   const highlights = (dbMeeting.highlights || [])
     .slice()
     .sort((a, b) => a.start_timestamp - b.start_timestamp)
-    .map((item) => ({
-      id: item.id,
-      title: item.title,
-      time: formatTimestamp(item.start_timestamp || item.start_time),
-      kind: item.kind || "Highlight",
-      startTimeSec: Number(item.start_timestamp || item.start_time) || 0,
-    }));
+    .map((item) => {
+      const startSec = Number(item.start_timestamp || item.start_time) || 0;
+      const endSec = Number(item.end_timestamp || item.end_time) || startSec;
+
+      const isUser =
+        item.kind?.toLowerCase() === "user" ||
+        item.kind?.toLowerCase().startsWith("user:") ||
+        item.kind?.toLowerCase() === "user_created";
+
+      let highlightText = item.text?.trim();
+      if (!highlightText && item.kind && item.kind.startsWith("user:")) {
+        try {
+          const parsed = JSON.parse(item.kind.slice(5));
+          if (parsed.text) highlightText = parsed.text;
+        } catch {}
+      }
+      if (!highlightText && Array.isArray(dbMeeting.transcript_segments)) {
+        const matching = dbMeeting.transcript_segments.filter(
+          (s) => Math.max(0, s.start_time) >= startSec - 0.5 && Math.max(0, s.start_time) <= endSec + 0.5
+        );
+        if (matching.length > 0) {
+          highlightText = matching.map((s) => s.text).join(" ");
+        }
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        time: formatTimestamp(startSec),
+        endTime: endSec > startSec ? formatTimestamp(endSec) : undefined,
+        kind: isUser ? "User Highlight" : (item.kind || "Suggested"),
+        startTimeSec: startSec,
+        endTimeSec: endSec,
+        text: highlightText,
+        source: (isUser ? "user" : "ai") as "user" | "ai",
+      };
+    });
 
   const activeShareLink = (dbMeeting.share_links || []).find(
     (link) => link.status === "active" && link.is_active !== false

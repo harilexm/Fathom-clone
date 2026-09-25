@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
   ArrowLeft, Bookmark, Check, CheckCircle2, ChevronRight, Circle,
   Copy, Download, ListTodo, Maximize2, MoreHorizontal, Play, Plus,
-  Search, Share2, Sparkles, WandSparkles
+  Search, Share2, Sparkles, WandSparkles, Trash2
 } from "lucide-react";
-import type { Meeting, TranscriptTurn } from "@/lib/sample-data";
-import { formatMeetingDuration } from "@/lib/meetings";
+import type { Meeting, TranscriptTurn, Highlight } from "@/lib/sample-data";
+import { formatMeetingDuration, formatTimestamp } from "@/lib/meetings";
 import { ParticipantAvatars } from "@/components/participant-avatars";
 import { Button, Card, Dropdown, Modal, Tabs } from "@/components/ui";
 
@@ -291,7 +291,15 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
   );
 }
 
-export function TranscriptPanel({ meeting, onSeek }: { meeting: Meeting; onSeek?: (timeSec: number) => void }) {
+export function TranscriptPanel({
+  meeting,
+  onSeek,
+  onHighlightTurn,
+}: {
+  meeting: Meeting;
+  onSeek?: (timeSec: number) => void;
+  onHighlightTurn?: (turn: TranscriptTurn) => void;
+}) {
   const turns: TranscriptTurn[] = meeting.transcript;
   const [query, setQuery] = useState("");
   const [speaker, setSpeaker] = useState("all");
@@ -346,21 +354,33 @@ export function TranscriptPanel({ meeting, onSeek }: { meeting: Meeting; onSeek?
           {shown.map((turn) => (
             <li key={turn.id} className="group flex gap-3 rounded-xl px-2 py-4 hover:bg-[#152233]">
               <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold " + turn.color}>{turn.initials}</span>
-              <div className="min-w-0">
-                <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="text-xs font-bold">{turn.speaker}</span>
-                  {onSeek && turn.startTimeSec !== undefined ? (
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold">{turn.speaker}</span>
+                    {onSeek && turn.startTimeSec !== undefined ? (
+                      <button
+                        type="button"
+                        onClick={() => onSeek(turn.startTimeSec!)}
+                        className="whitespace-nowrap text-[11px] font-semibold text-brand/70 transition hover:text-brand hover:underline"
+                        aria-label={`Seek to ${turn.time}`}
+                        title={`Jump to ${turn.time}`}
+                      >
+                        {turn.time}
+                      </button>
+                    ) : (
+                      <span className="whitespace-nowrap text-[11px] text-muted">{turn.time}</span>
+                    )}
+                  </div>
+                  {onHighlightTurn && (
                     <button
                       type="button"
-                      onClick={() => onSeek(turn.startTimeSec!)}
-                      className="whitespace-nowrap text-[11px] font-semibold text-brand/70 transition hover:text-brand hover:underline"
-                      aria-label={`Seek to ${turn.time}`}
-                      title={`Jump to ${turn.time}`}
+                      onClick={() => onHighlightTurn(turn)}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition inline-flex items-center gap-1 rounded bg-[#1c2a3c] hover:bg-[#283b54] px-2 py-0.5 text-[11px] font-medium text-brand border border-[#2b3e55]"
+                      title="Create highlight from this transcript moment"
                     >
-                      {turn.time}
+                      <Bookmark size={11} /> Highlight
                     </button>
-                  ) : (
-                    <span className="whitespace-nowrap text-[11px] text-muted">{turn.time}</span>
                   )}
                 </div>
                 <p className="break-words text-[13px] leading-6 text-[#acbbcc]">{turn.text}</p>
@@ -420,39 +440,413 @@ export function ActionItemsPanel({ meeting, doneIds, onToggle }: { meeting: Meet
   );
 }
 
-export function HighlightsPanel({ meeting, onSeek }: { meeting: Meeting; onSeek?: (timeSec: number) => void }) {
-  if (meeting.highlights.length === 0) {
-    return <PendingContent meeting={meeting} type="highlights" />;
+export function CreateHighlightModal({
+  open,
+  onClose,
+  initialData,
+  meetingId,
+  existingHighlights,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  initialData?: {
+    title?: string;
+    startTime?: number;
+    endTime?: number;
+    text?: string;
+  };
+  meetingId: string;
+  existingHighlights: Highlight[];
+  onCreated: (highlight: Highlight) => void;
+}) {
+  const [title, setTitle] = useState(initialData?.title || "Key moment");
+  const [startTime, setStartTime] = useState<number>(initialData?.startTime ?? 0);
+  const [endTime, setEndTime] = useState<number>(initialData?.endTime ?? 5);
+  const [text, setText] = useState(initialData?.text || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTitle(initialData?.title || "Key moment");
+      const s = initialData?.startTime ?? 0;
+      setStartTime(s);
+      setEndTime(initialData?.endTime ?? (s + 5));
+      setText(initialData?.text || "");
+      setError(null);
+    }
+  }, [open, initialData]);
+
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const cleanTitle = title.trim();
+    if (!cleanTitle) {
+      setError("Please provide a title for the highlight.");
+      return;
+    }
+    if (endTime < startTime) {
+      setError("End time cannot be earlier than start time.");
+      return;
+    }
+
+    // Client-side duplicate check: match within 0.5s and same title, or same span for user highlights
+    const isDuplicate = existingHighlights.some((h) => {
+      const hStart = h.startTimeSec ?? 0;
+      const hEnd = h.endTimeSec ?? hStart;
+      const startMatches = Math.abs(hStart - startTime) < 0.5;
+      const titleMatches = h.title.trim().toLowerCase() === cleanTitle.toLowerCase();
+      const endMatches = Math.abs(hEnd - endTime) < 0.5;
+      const isUser = h.source === "user";
+      return (startMatches && titleMatches) || (isUser && startMatches && endMatches);
+    });
+
+    if (isDuplicate) {
+      setError("A highlight with this title and timestamp already exists.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const res = await fetch(`/api/meetings/${meetingId}/highlights`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: cleanTitle,
+          startTime,
+          endTime,
+          text: text.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create highlight");
+      }
+
+      onCreated({
+        id: data.highlight.id,
+        title: data.highlight.title,
+        time: formatTimestamp(startTime),
+        endTime: endTime > startTime ? formatTimestamp(endTime) : undefined,
+        kind: "User Highlight",
+        startTimeSec: startTime,
+        endTimeSec: endTime,
+        text: text.trim(),
+        source: "user",
+      });
+
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create highlight");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
-    <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted">{meeting.highlights.length} {meeting.isDemo ? "sample highlights" : "highlights"}</p>
-        <Button variant="secondary" size="sm" disabled title="Clip creation requires completed transcript timestamps"><Plus size={14} /> Create clip</Button>
-      </div>
-      <div className="space-y-3">
-        {meeting.highlights.map((item) => (
-          <div key={item.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-[#2b3b4e] p-4 sm:gap-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#132b43] text-brand"><Bookmark size={17} /></span>
-            <div className="min-w-0 flex-1"><p className="break-words text-[13px] font-bold">{item.title}</p><p className="mt-1 text-[11px] text-muted">{item.kind}</p></div>
-            {onSeek && item.startTimeSec !== undefined ? (
-              <button
-                type="button"
-                onClick={() => onSeek(item.startTimeSec!)}
-                className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-brand/70 transition hover:bg-[#2e425a] hover:text-brand"
-                aria-label={`Seek to ${item.time}`}
-                title={`Jump to ${item.time}`}
+    <Modal
+      title="Create highlight"
+      open={open}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button size="sm" type="button" onClick={() => handleSubmit()} disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save highlight"}
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div role="alert" className="rounded-lg bg-rose-950/60 border border-rose-500/30 p-2.5 text-xs text-rose-300">
+            {error}
+          </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold text-[#acbbcc] mb-1">Highlight title</label>
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Script review feedback"
+            className="w-full rounded-lg border border-[#2b3b4e] bg-[#172333] px-3 py-2 text-xs text-white placeholder-muted focus:border-brand focus:outline-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-[#acbbcc] mb-1">
+              Start: <span className="font-mono text-brand">{formatTimestamp(startTime)}</span> ({startTime.toFixed(1)}s)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={startTime}
+              onChange={(e) => setStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
+              className="w-full rounded-lg border border-[#2b3b4e] bg-[#172333] px-3 py-2 text-xs text-white font-mono focus:border-brand focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#acbbcc] mb-1">
+              End: <span className="font-mono text-brand">{formatTimestamp(endTime)}</span> ({endTime.toFixed(1)}s)
+            </label>
+            <input
+              type="number"
+              min={startTime}
+              step="0.5"
+              value={endTime}
+              onChange={(e) => setEndTime(Math.max(startTime, parseFloat(e.target.value) || startTime))}
+              className="w-full rounded-lg border border-[#2b3b4e] bg-[#172333] px-3 py-2 text-xs text-white font-mono focus:border-brand focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#acbbcc] mb-1">Selected transcript text</label>
+          <textarea
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Selected transcript excerpt..."
+            className="w-full rounded-lg border border-[#2b3b4e] bg-[#172333] px-3 py-2 text-xs text-white placeholder-muted focus:border-brand focus:outline-none resize-none"
+          />
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function HighlightsPanel({
+  meeting,
+  onSeek,
+  onOpenCreate,
+  onDeleteHighlight,
+}: {
+  meeting: Meeting;
+  onSeek?: (timeSec: number) => void;
+  onOpenCreate?: () => void;
+  onDeleteHighlight?: (id: string) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "user" | "ai">("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const highlights = meeting.highlights || [];
+  const userHighlights = highlights.filter((h) => h.source === "user");
+  const aiHighlights = highlights.filter((h) => h.source !== "user");
+
+  if (highlights.length === 0 && meeting.isDemo) {
+    return <PendingContent meeting={meeting} type="highlights" />;
+  }
+
+  async function handleDelete(id: string) {
+    if (!onDeleteHighlight) return;
+    try {
+      setDeletingId(id);
+      await onDeleteHighlight(id);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const renderHighlightCard = (item: Highlight, isUser: boolean) => (
+    <div
+      key={item.id}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button")) return;
+        if (onSeek && item.startTimeSec !== undefined) onSeek(item.startTimeSec);
+      }}
+      className={`group flex min-w-0 flex-col gap-2 rounded-xl border border-[#2b3b4e] bg-[#121c29]/40 p-4 transition hover:border-[#38506a] hover:bg-[#152334]/60 ${
+        onSeek && item.startTimeSec !== undefined ? "cursor-pointer" : ""
+      }`}
+    >
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+              isUser ? "bg-amber-950/60 text-amber-300 border border-amber-500/30" : "bg-[#132b43] text-brand"
+            }`}
+          >
+            <Bookmark size={15} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="break-words text-[13px] font-bold text-white">{item.title}</p>
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  isUser
+                    ? "bg-amber-950/70 text-amber-300 border border-amber-500/30"
+                    : "bg-[#1a2d42] text-[#8cb4db]"
+                }`}
               >
-                {item.time}
-              </button>
+                {item.kind}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {onSeek && item.startTimeSec !== undefined ? (
+            <button
+              type="button"
+              onClick={() => onSeek(item.startTimeSec!)}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#223247] px-2.5 py-1 text-[11px] font-semibold text-brand/90 transition hover:bg-[#2e425a] hover:text-brand"
+              aria-label={`Seek to ${item.time}`}
+              title={`Jump to ${item.time}`}
+            >
+              <Play size={10} fill="currentColor" />
+              <span>{item.time}</span>
+              {item.endTime && <span className="text-muted"> - {item.endTime}</span>}
+            </button>
+          ) : (
+            <span className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-[#acbbcc]">{item.time}</span>
+          )}
+
+          {isUser && onDeleteHighlight && (
+            <button
+              type="button"
+              onClick={() => handleDelete(item.id)}
+              disabled={deletingId === item.id}
+              className="rounded-lg p-1.5 text-muted transition hover:bg-rose-950/50 hover:text-rose-400 disabled:opacity-50"
+              title="Delete this highlight"
+              aria-label={`Delete highlight: ${item.title}`}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {item.text && (
+        <div className="mt-1 rounded-lg border-l-2 border-brand/50 bg-[#0c131c]/60 px-3 py-2">
+          <p className="text-xs italic leading-5 text-[#b0c0d4]">&ldquo;{item.text}&rdquo;</p>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Header with filter tabs and Create highlight button */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#253345] pb-3">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              filter === "all" ? "bg-brand text-white" : "bg-[#172333] text-muted hover:text-ink"
+            }`}
+          >
+            All ({highlights.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("user")}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              filter === "user" ? "bg-brand text-white" : "bg-[#172333] text-muted hover:text-ink"
+            }`}
+          >
+            Your Highlights ({userHighlights.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("ai")}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              filter === "ai" ? "bg-brand text-white" : "bg-[#172333] text-muted hover:text-ink"
+            }`}
+          >
+            AI Suggested ({aiHighlights.length})
+          </button>
+        </div>
+
+        {onOpenCreate && !meeting.isDemo && (
+          <Button variant="secondary" size="sm" onClick={onOpenCreate}>
+            <Plus size={14} /> Create highlight
+          </Button>
+        )}
+      </div>
+
+      {/* Main content based on filter */}
+      {filter === "all" && (
+        <div className="space-y-6">
+          {/* User highlights section */}
+          <div>
+            <div className="mb-2.5 flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                <Bookmark size={13} /> Your Highlights ({userHighlights.length})
+              </h4>
+            </div>
+            {userHighlights.length > 0 ? (
+              <div className="space-y-2.5">
+                {userHighlights.map((item) => renderHighlightCard(item, true))}
+              </div>
             ) : (
-              <span className="shrink-0 rounded-lg bg-[#223247] px-2 py-1 text-[11px] font-semibold text-[#acbbcc]">{item.time}</span>
+              <div className="rounded-xl border border-dashed border-[#2b3b4e] p-5 text-center text-xs text-muted">
+                No custom highlights created yet. Click <span className="font-semibold text-brand">&ldquo;Highlight&rdquo;</span> on any transcript turn or use <span className="font-semibold text-brand">&ldquo;+ Create highlight&rdquo;</span> above.
+              </div>
             )}
           </div>
-        ))}
-      </div>
-      {meeting.isDemo && <p className="mt-4 text-[11px] text-muted">Clip creation will be available in a later step.</p>}
+
+          {/* AI suggested highlights section */}
+          <div>
+            <div className="mb-2.5 flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-brand/90 flex items-center gap-1.5">
+                <Sparkles size={13} /> AI-Suggested Highlights ({aiHighlights.length})
+              </h4>
+            </div>
+            {aiHighlights.length > 0 ? (
+              <div className="space-y-2.5">
+                {aiHighlights.map((item) => renderHighlightCard(item, false))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-[#2b3b4e] p-5 text-center text-xs text-muted">
+                No AI-suggested highlights available for this meeting yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {filter === "user" && (
+        <div>
+          {userHighlights.length > 0 ? (
+            <div className="space-y-2.5">
+              {userHighlights.map((item) => renderHighlightCard(item, true))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[#2b3b4e] p-8 text-center text-xs text-muted">
+              <p className="font-semibold text-white">No user highlights yet</p>
+              <p className="mt-1">Create a highlight from any moment in the transcript or click below.</p>
+              {onOpenCreate && !meeting.isDemo && (
+                <Button variant="secondary" size="sm" onClick={onOpenCreate} className="mt-3">
+                  <Plus size={14} /> Create highlight
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {filter === "ai" && (
+        <div>
+          {aiHighlights.length > 0 ? (
+            <div className="space-y-2.5">
+              {aiHighlights.map((item) => renderHighlightCard(item, false))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[#2b3b4e] p-8 text-center text-xs text-muted">
+              No AI-suggested highlights found for this meeting.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -578,7 +972,51 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
   const [isCheckingProgress, setIsCheckingProgress] = useState(false);
   const [isAnalyzingLoading, setIsAnalyzingLoading] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const [isHighlightModalOpen, setIsHighlightModalOpen] = useState(false);
+  const [highlightInitialData, setHighlightInitialData] = useState<{
+    title?: string;
+    startTime?: number;
+    endTime?: number;
+    text?: string;
+  } | undefined>(undefined);
   const mediaRef = useRef<HTMLMediaElement>(null);
+
+  function handleOpenCreateHighlight(initial?: { title?: string; startTime?: number; endTime?: number; text?: string }) {
+    setHighlightInitialData(initial);
+    setIsHighlightModalOpen(true);
+  }
+
+  function handleHighlightCreated(newHighlight: Highlight) {
+    setCurrentMeeting((prev) => ({
+      ...prev,
+      highlights: [newHighlight, ...prev.highlights.filter((h) => h.id !== newHighlight.id)],
+    }));
+  }
+
+  async function handleHighlightDeleted(highlightId: string) {
+    if (!currentMeeting.id || currentMeeting.isDemo) {
+      setCurrentMeeting((prev) => ({
+        ...prev,
+        highlights: prev.highlights.filter((h) => h.id !== highlightId),
+      }));
+      return;
+    }
+    try {
+      const res = await fetch(`/api/meetings/${currentMeeting.id}/highlights?highlightId=${highlightId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to delete highlight");
+      }
+      setCurrentMeeting((prev) => ({
+        ...prev,
+        highlights: prev.highlights.filter((h) => h.id !== highlightId),
+      }));
+    } catch (err) {
+      console.error("Failed to delete highlight:", err);
+    }
+  }
 
   function seekTo(timeSec: number) {
     const el = mediaRef.current;
@@ -802,13 +1240,41 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
             </div>
             <div role="tabpanel" id="meeting-content-panel" aria-labelledby={"meeting-content-" + tab} className="p-4 sm:p-5">
               {tab === "summary" && <SummaryPanel meeting={currentMeeting} onTabChange={setTab} />}
-              {tab === "transcript" && <TranscriptPanel meeting={currentMeeting} onSeek={playbackUrl ? seekTo : undefined} />}
+              {tab === "transcript" && (
+                <TranscriptPanel
+                  meeting={currentMeeting}
+                  onSeek={playbackUrl ? seekTo : undefined}
+                  onHighlightTurn={(turn) =>
+                    handleOpenCreateHighlight({
+                      title: `Quote from ${turn.speaker}`,
+                      startTime: turn.startTimeSec,
+                      endTime: (turn.startTimeSec ?? 0) + 5,
+                      text: turn.text,
+                    })
+                  }
+                />
+              )}
               {tab === "actions" && <ActionItemsPanel meeting={currentMeeting} doneIds={doneIds} onToggle={toggleDone} />}
-              {tab === "highlights" && <HighlightsPanel meeting={currentMeeting} onSeek={playbackUrl ? seekTo : undefined} />}
+              {tab === "highlights" && (
+                <HighlightsPanel
+                  meeting={currentMeeting}
+                  onSeek={playbackUrl ? seekTo : undefined}
+                  onOpenCreate={() => handleOpenCreateHighlight()}
+                  onDeleteHighlight={handleHighlightDeleted}
+                />
+              )}
             </div>
           </Card>
       </div>
       <SharePreviewModal meeting={currentMeeting} open={shareOpen} onClose={() => setShareOpen(false)} />
+      <CreateHighlightModal
+        open={isHighlightModalOpen}
+        onClose={() => setIsHighlightModalOpen(false)}
+        initialData={highlightInitialData}
+        meetingId={currentMeeting.id}
+        existingHighlights={currentMeeting.highlights}
+        onCreated={handleHighlightCreated}
+      />
     </div>
   );
 }
