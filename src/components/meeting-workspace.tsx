@@ -543,6 +543,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
   const [doneIds, setDoneIds] = useState<string[]>(meeting.actions.filter((item) => item.done).map((item) => item.id));
   const [isTranscribingLoading, setIsTranscribingLoading] = useState(false);
   const [isCheckingProgress, setIsCheckingProgress] = useState(false);
+  const [isAnalyzingLoading, setIsAnalyzingLoading] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
   async function handleStartTranscription() {
@@ -596,6 +597,26 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
     }
   }
 
+  async function handleRunAnalysis() {
+    if (isAnalyzingLoading || currentMeeting.isDemo) return;
+    try {
+      setIsAnalyzingLoading(true);
+      setTranscribeError(null);
+      const res = await fetch(`/api/meetings/${currentMeeting.id}/analyze`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to analyze meeting");
+      }
+      window.location.reload();
+    } catch (err) {
+      setTranscribeError(err instanceof Error ? err.message : "Failed to run AI analysis");
+    } finally {
+      setIsAnalyzingLoading(false);
+    }
+  }
+
   function toggleDone(id: string) {
     setDoneIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
@@ -620,7 +641,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
       ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
       : statusLower === "analyzing"
         ? "bg-indigo-950/60 text-indigo-300 border border-indigo-500/30"
-        : statusLower === "ready"
+        : statusLower === "ready" || statusLower === "completed"
           ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
           : statusLower === "failed"
             ? "bg-rose-950/60 text-rose-300 border border-rose-500/30"
@@ -666,6 +687,17 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                 >
                   <Sparkles size={12} />
                   {isCheckingProgress ? "Checking status..." : "Check progress"}
+                </button>
+              )}
+              {statusLower === "analyzing" && (
+                <button
+                  type="button"
+                  onClick={handleRunAnalysis}
+                  disabled={isAnalyzingLoading}
+                  className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+                >
+                  <Sparkles size={12} />
+                  {isAnalyzingLoading ? "Analyzing with OpenAI..." : "Run AI Analysis"}
                 </button>
               )}
             </div>

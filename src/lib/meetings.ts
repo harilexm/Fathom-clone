@@ -154,6 +154,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   let statusText = "Uploaded";
   const lowerStatus = rawStatus.toLowerCase();
   if (lowerStatus === "ready") statusText = "Ready";
+  else if (lowerStatus === "completed") statusText = "Completed";
   else if (lowerStatus === "processing") statusText = "Processing";
   else if (lowerStatus === "transcribing") statusText = "Transcribing";
   else if (lowerStatus === "analyzing") statusText = "Analyzing";
