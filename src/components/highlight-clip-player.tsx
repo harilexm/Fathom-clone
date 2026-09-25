@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -9,8 +9,7 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  Clock,
-  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { formatTimestamp } from "@/lib/meetings";
 
@@ -36,38 +35,34 @@ export function HighlightClipPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [clipCurrentTime, setClipCurrentTime] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Cue video to startTimeSec when media loads or URL changes
+  // Cue video to startTimeSec as soon as metadata is available
+  const cueToStart = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      if (Math.abs(video.currentTime - startTimeSec) > 0.3) {
+        video.currentTime = startTimeSec;
+      }
+    } catch {}
+    setIsLoaded(true);
+  }, [startTimeSec]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const cueToStart = () => {
-      if (Math.abs(video.currentTime - startTimeSec) > 0.3) {
-        try {
-          video.currentTime = startTimeSec;
-        } catch {}
-      }
-      setIsLoaded(true);
-    };
-
-    video.addEventListener("loadedmetadata", cueToStart);
-    video.addEventListener("canplay", cueToStart);
-
     if (video.readyState >= 1) {
       cueToStart();
     }
-
-    return () => {
-      video.removeEventListener("loadedmetadata", cueToStart);
-      video.removeEventListener("canplay", cueToStart);
-    };
-  }, [playbackUrl, startTimeSec]);
+  }, [cueToStart, playbackUrl]);
 
   // Handle timeupdate and enforce clip boundary
   const handleTimeUpdate = () => {
@@ -76,7 +71,7 @@ export function HighlightClipPlayer({
 
     const current = video.currentTime;
 
-    // Enforce clip end boundary
+    // Enforce clip end boundary: pause and reset to start
     if (current >= endTimeSec) {
       video.pause();
       setIsPlaying(false);
@@ -104,11 +99,17 @@ export function HighlightClipPlayer({
       video.pause();
       setIsPlaying(false);
     } else {
-      // If at or past end, restart from clip start
-      if (video.currentTime >= endTimeSec || video.currentTime < startTimeSec) {
+      // If at or past end, or before start, restart from clip start
+      if (video.currentTime >= endTimeSec - 0.1 || video.currentTime < startTimeSec - 0.5) {
         video.currentTime = startTimeSec;
+        setClipCurrentTime(0);
       }
-      video.play().then(() => setIsPlaying(true)).catch(() => {});
+      video
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => {
+          console.error("Playback error:", err);
+        });
     }
   };
 
@@ -117,7 +118,10 @@ export function HighlightClipPlayer({
     if (!video) return;
     video.currentTime = startTimeSec;
     setClipCurrentTime(0);
-    video.play().then(() => setIsPlaying(true)).catch(() => {});
+    video
+      .play()
+      .then(() => setIsPlaying(true))
+      .catch(() => {});
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,9 +129,9 @@ export function HighlightClipPlayer({
     if (!video) return;
 
     const targetClipOffset = parseFloat(e.target.value);
+    setClipCurrentTime(targetClipOffset);
     const newVideoTime = startTimeSec + targetClipOffset;
     video.currentTime = Math.max(startTimeSec, Math.min(endTimeSec, newVideoTime));
-    setClipCurrentTime(targetClipOffset);
   };
 
   const toggleMute = () => {
@@ -173,9 +177,6 @@ export function HighlightClipPlayer({
 
   const progressPercent = Math.min(100, Math.max(0, (clipCurrentTime / clipDuration) * 100));
 
-  // Append media fragment for browsers that optimize byte ranges
-  const mediaFragmentUrl = `${playbackUrl}#t=${startTimeSec},${endTimeSec}`;
-
   return (
     <div
       ref={containerRef}
@@ -185,16 +186,23 @@ export function HighlightClipPlayer({
     >
       <video
         ref={videoRef}
-        src={mediaFragmentUrl}
+        src={playbackUrl}
         playsInline
         preload="auto"
+        onLoadedMetadata={cueToStart}
+        onCanPlay={cueToStart}
+        onLoadedData={() => setIsLoaded(true)}
+        onWaiting={() => setIsBuffering(true)}
+        onPlaying={() => {
+          setIsBuffering(false);
+          setIsPlaying(true);
+        }}
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onClick={togglePlay}
         className="h-full w-full object-contain cursor-pointer"
       >
-        <source src={mediaFragmentUrl} type={mimeType} />
         Your browser does not support HTML5 video playback.
       </video>
 
@@ -204,36 +212,42 @@ export function HighlightClipPlayer({
           showControls || !isPlaying ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="flex items-center gap-2 rounded-lg bg-[#0a111a]/80 px-3 py-1.5 backdrop-blur-md border border-white/10 text-xs text-white">
+        <div className="flex items-center gap-2 rounded-lg bg-[#0a111a]/85 px-3 py-1.5 backdrop-blur-md border border-white/10 text-xs text-white">
           <span className="flex h-2 w-2 rounded-full bg-brand animate-pulse" />
           <span className="font-semibold text-brand">Highlight Clip</span>
           <span className="text-white/40">·</span>
-          <span className="font-mono text-white/80">
+          <span className="font-mono text-white/90">
             {formatTimestamp(startTimeSec)} – {formatTimestamp(endTimeSec)}
           </span>
-          <span className="rounded bg-brand/20 px-1.5 py-0.2 text-[10px] font-bold text-brand">
+          <span className="rounded bg-brand/20 px-1.5 py-0.5 text-[10px] font-bold text-brand">
             {clipDuration}s
           </span>
         </div>
       </div>
 
-      {/* Center Big Play / Replay Overlay Button */}
-      {(!isPlaying || !isLoaded) && (
+      {/* Center Big Play / Replay / Buffering Overlay Button */}
+      {(!isPlaying || isBuffering) && (
         <div
           onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[2px] transition-all cursor-pointer"
+          className="absolute inset-0 flex items-center justify-center bg-black/25 backdrop-blur-[2px] transition-all cursor-pointer"
         >
-          <button
-            type="button"
-            className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-white shadow-xl shadow-brand/30 transition-transform duration-200 hover:scale-110 active:scale-95 border border-white/20"
-            aria-label={isPlaying ? "Pause highlight" : "Play highlight"}
-          >
-            {clipCurrentTime >= clipDuration ? (
-              <RotateCcw size={26} className="text-white" />
-            ) : (
-              <Play size={28} fill="white" className="ml-1 text-white" />
-            )}
-          </button>
+          {isBuffering && isPlaying ? (
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0e1724]/90 text-brand shadow-xl border border-white/15">
+              <Loader2 size={30} className="animate-spin text-brand" />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-white shadow-xl shadow-brand/35 transition-transform duration-200 hover:scale-110 active:scale-95 border border-white/20"
+              aria-label={isPlaying ? "Pause highlight" : "Play highlight"}
+            >
+              {clipCurrentTime >= clipDuration - 0.2 ? (
+                <RotateCcw size={26} className="text-white" />
+              ) : (
+                <Play size={28} fill="white" className="ml-1 text-white" />
+              )}
+            </button>
+          )}
         </div>
       )}
 

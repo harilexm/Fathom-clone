@@ -124,17 +124,6 @@ export function PublicSharedHighlightWorkspace({
           <h1 className="mt-2 text-xl sm:text-2xl font-bold text-white tracking-tight">
             {highlight.title}
           </h1>
-          <div className="mt-2.5 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-md bg-[#192636] px-2.5 py-1 text-xs font-semibold text-brand">
-              <Clock size={12} /> {highlight.time} {highlight.endTime ? `– ${highlight.endTime}` : ""}
-            </span>
-            {durationSec && (
-              <span className="text-xs text-muted font-medium">({durationSec}s clip)</span>
-            )}
-            <span className="rounded-md bg-[#172230] px-2 py-0.5 text-[11px] font-medium text-muted">
-              {highlight.source === "user" ? "User Highlight" : "Auto Highlight"}
-            </span>
-          </div>
         </div>
 
         {/* Highlight Video Clip Player */}
