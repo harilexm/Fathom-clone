@@ -241,7 +241,7 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-brand">
-            <Sparkles size={15} /> Meeting notes
+            Meeting notes
             {meeting.isDemo && (
               <span className="rounded bg-[#132b43] px-1.5 py-0.5 text-[10px] font-semibold">Demo</span>
             )}
@@ -250,7 +250,6 @@ export function SummaryPanel({ meeting, onTabChange }: { meeting: Meeting; onTab
         <div className="flex items-center gap-2">
           <label htmlFor="summary-template-select" className="sr-only">Summary Template</label>
           <div className="flex items-center gap-2 rounded-xl border border-[#2b3b4e] bg-[#172333] px-3 py-1.5 text-xs">
-            <WandSparkles size={14} className="text-[#4b83ff]" />
             <select
               id="summary-template-select"
               aria-label="Summary template"
@@ -380,18 +379,34 @@ export function TranscriptPanel({
           <p className="text-xs text-muted">{turns.length} {meeting.isDemo ? "sample turns" : "turns"} · {speakers.length} speakers</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <label className="flex h-10 min-w-0 items-center gap-2 rounded-lg border border-[#2b3b4e] px-3 text-muted focus-within:border-[#4c87b9]">
-            <Search size={14} />
-            <input value={query} onChange={(event) => { setQuery(event.target.value); setLimit(24); }} placeholder="Search transcript" aria-label="Search transcript" className="min-w-0 flex-1 text-xs text-ink outline-none sm:w-36" />
-          </label>
+          <div className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-[#23354b] bg-[#111a27] px-3 text-muted focus-within:border-[#4b83ff]/60 focus-within:ring-1 focus-within:ring-[#4b83ff]/30">
+            <Search size={14} className="shrink-0 text-[#7a8ea5]" />
+            <input
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setLimit(24); }}
+              placeholder="Search transcript"
+              aria-label="Search transcript"
+              className="min-w-0 flex-1 bg-transparent text-xs text-[#e5effa] outline-none placeholder:text-[#6c8299] sm:w-44"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="text-xs text-muted hover:text-white"
+                aria-label="Clear transcript search"
+              >
+                ×
+              </button>
+            )}
+          </div>
           <select
             aria-label="Filter transcript by speaker"
             value={speaker}
             onChange={(event) => { setSpeaker(event.target.value); setLimit(24); }}
-            className="h-10 max-w-full rounded-lg border border-[#2b3b4e] bg-[#172333] px-3 text-xs text-[#acbbcc] focus:border-[#4c87b9]"
+            className="h-9 max-w-full rounded-lg border border-[#23354b] bg-[#111a27] px-3 text-xs text-[#c0d2e5] outline-none focus:border-[#4b83ff]/60 cursor-pointer"
           >
-            <option value="all">All speakers</option>
-            {speakers.map((name) => <option key={name} value={name}>{name}</option>)}
+            <option value="all" className="bg-[#111a27] text-[#c0d2e5]">All speakers</option>
+            {speakers.map((name) => <option key={name} value={name} className="bg-[#111a27] text-[#c0d2e5]">{name}</option>)}
           </select>
         </div>
       </div>
@@ -838,7 +853,7 @@ export function HighlightsPanel({
               filter === "ai" ? "bg-brand text-white" : "bg-[#172333] text-muted hover:text-ink"
             }`}
           >
-            AI Suggested ({aiHighlights.length})
+            Auto Highlights ({aiHighlights.length})
           </button>
         </div>
 
@@ -870,11 +885,11 @@ export function HighlightsPanel({
             )}
           </div>
 
-          {/* AI suggested highlights section */}
+          {/* Auto highlights section */}
           <div>
             <div className="mb-2.5 flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-brand/90 flex items-center gap-1.5">
-                <Sparkles size={13} /> AI-Suggested Highlights ({aiHighlights.length})
+              <h4 className="text-xs font-bold uppercase tracking-wider text-brand/90">
+                Auto Highlights ({aiHighlights.length})
               </h4>
             </div>
             {aiHighlights.length > 0 ? (
@@ -883,7 +898,7 @@ export function HighlightsPanel({
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-[#2b3b4e] p-5 text-center text-xs text-muted">
-                No AI-suggested highlights available for this meeting yet.
+                No auto highlights available for this meeting yet.
               </div>
             )}
           </div>
@@ -918,7 +933,7 @@ export function HighlightsPanel({
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-[#2b3b4e] p-8 text-center text-xs text-muted">
-              No AI-suggested highlights found for this meeting.
+              No auto highlights found for this meeting.
             </div>
           )}
         </div>
@@ -1454,75 +1469,95 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
 
   return (
     <div className="fade-in min-w-0">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/my-calls" className="inline-flex items-center gap-2 text-xs font-semibold text-muted hover:text-brand"><ArrowLeft size={15} /> Back to My Calls</Link>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <Link
+          href="/my-calls"
+          className="inline-flex items-center gap-2 rounded-lg py-1 text-sm font-semibold text-[#9ab1cb] transition hover:text-white"
+          aria-label="Back to calls"
+        >
+          <ArrowLeft size={18} />
+          <span>Back</span>
+        </Link>
       </div>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-            <span suppressHydrationWarning>{currentMeeting.date}</span>
-            <span>·</span>
-            <span suppressHydrationWarning>{currentMeeting.time}</span>
-            <span>·</span>
-            <span>{meetingDuration}</span>
-          </div>
-          <h1 className="max-w-4xl break-words text-[21px] font-semibold leading-tight tracking-tight sm:text-[24px]">{currentMeeting.title}</h1>
-          {!currentMeeting.isDemo && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span role="status" className={`inline-block rounded px-2 py-1 text-xs font-semibold ${badgeClasses}`}>
+
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <h1 className="max-w-4xl break-words text-[22px] font-bold leading-tight tracking-tight text-white sm:text-[26px]">
+            {currentMeeting.title}
+          </h1>
+
+          {/* Unified metadata bar underneath the video title */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-[#8da3be]">
+            {!currentMeeting.isDemo && (
+              <span role="status" className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${badgeClasses}`}>
                 {currentMeeting.status}
               </span>
-              {(statusLower === "uploaded" || statusLower === "pending") && (
-                <button
-                  type="button"
-                  onClick={handleStartTranscription}
-                  disabled={isTranscribingLoading}
-                  className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
-                  title={currentMeeting.creditsRequired ? `Requires ${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"} to process` : undefined}
-                >
-                  <Sparkles size={12} />
-                  {isTranscribingLoading
-                    ? "Submitting to Soniox..."
-                    : `Transcribe${currentMeeting.creditsRequired ? ` (${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"})` : ""}`}
-                </button>
-              )}
-              {statusLower === "transcribing" && (
-                <button
-                  type="button"
-                  onClick={handleCheckProgress}
-                  disabled={isCheckingProgress}
-                  className="inline-flex items-center gap-1.5 rounded bg-[#223247] hover:bg-[#2e425a] px-2.5 py-1 text-xs font-semibold text-[#b8d0e8] transition disabled:opacity-60 border border-[#38506a]"
-                >
-                  <Sparkles size={12} />
-                  {isCheckingProgress ? "Checking status..." : "Check progress"}
-                </button>
-              )}
-              {statusLower === "analyzing" && (
-                <button
-                  type="button"
-                  onClick={handleRunAnalysis}
-                  disabled={isAnalyzingLoading}
-                  className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
-                >
-                  <Sparkles size={12} />
-                  {isAnalyzingLoading ? "Analyzing with OpenAI..." : "Run AI Analysis"}
-                </button>
-              )}
+            )}
+
+            {!currentMeeting.isDemo && (statusLower === "uploaded" || statusLower === "pending") && (
+              <button
+                type="button"
+                onClick={handleStartTranscription}
+                disabled={isTranscribingLoading}
+                className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+                title={currentMeeting.creditsRequired ? `Requires ${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"} to process` : undefined}
+              >
+                {isTranscribingLoading
+                  ? "Submitting to Soniox..."
+                  : `Transcribe${currentMeeting.creditsRequired ? ` (${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"})` : ""}`}
+              </button>
+            )}
+
+            {!currentMeeting.isDemo && statusLower === "transcribing" && (
+              <button
+                type="button"
+                onClick={handleCheckProgress}
+                disabled={isCheckingProgress}
+                className="inline-flex items-center gap-1.5 rounded bg-[#223247] hover:bg-[#2e425a] px-2.5 py-1 text-xs font-semibold text-[#b8d0e8] transition disabled:opacity-60 border border-[#38506a]"
+              >
+                {isCheckingProgress ? "Checking status..." : "Check progress"}
+              </button>
+            )}
+
+            {!currentMeeting.isDemo && statusLower === "analyzing" && (
+              <button
+                type="button"
+                onClick={handleRunAnalysis}
+                disabled={isAnalyzingLoading}
+                className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+              >
+                {isAnalyzingLoading ? "Analyzing..." : "Run AI Analysis"}
+              </button>
+            )}
+
+            <span className="text-[#3b5068]">·</span>
+            <span suppressHydrationWarning>{currentMeeting.date}</span>
+            <span className="text-[#3b5068]">·</span>
+            <span suppressHydrationWarning>{currentMeeting.time}</span>
+            <span className="text-[#3b5068]">·</span>
+            <span>{meetingDuration}</span>
+
+            <span className="text-[#3b5068]">·</span>
+            <div className="inline-flex items-center gap-1.5 text-muted">
+              <ParticipantAvatars people={currentMeeting.attendees} maxVisible={4} />
+              <span>
+                {currentMeeting.attendees.length} {currentMeeting.attendees.length === 1 ? "participant" : "participants"}
+              </span>
             </div>
-          )}
+          </div>
+
           {transcribeError && (
             <div role="alert" className="mt-2.5 flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-950/40 p-2.5 text-xs text-rose-300">
               <span className="shrink-0 font-bold" aria-hidden="true">⚠️</span>
               <p className="leading-snug">{transcribeError}</p>
             </div>
           )}
-          <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs text-muted">
-            <ParticipantAvatars people={currentMeeting.attendees} maxVisible={4} />
-            <span>{currentMeeting.attendees.length} participants</span>
-          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={handleOpenShareMeeting}><Share2 size={15} /> Share</Button>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={handleOpenShareMeeting} className="h-9 px-3.5 text-xs font-semibold">
+            <Share2 size={14} /> Share
+          </Button>
         </div>
       </div>
       <div className="min-w-0 space-y-3">

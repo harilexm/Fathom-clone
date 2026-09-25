@@ -132,7 +132,7 @@ export function PublicSharedHighlightWorkspace({
               <span className="text-xs text-muted font-medium">({durationSec}s clip)</span>
             )}
             <span className="rounded-md bg-[#172230] px-2 py-0.5 text-[11px] font-medium text-muted">
-              {highlight.source === "user" ? "User Highlight" : "AI Suggested"}
+              {highlight.source === "user" ? "User Highlight" : "Auto Highlight"}
             </span>
           </div>
         </div>
