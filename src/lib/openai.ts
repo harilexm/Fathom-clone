@@ -28,6 +28,7 @@ export interface MeetingAnalysisResult {
   action_items: ActionItemResult[];
   topics: TopicResult[];
   highlights: HighlightResult[];
+  participants: string[];
 }
 
 export interface TranscriptTurnInput {
@@ -132,6 +133,7 @@ Provide a comprehensive, structured analysis in valid JSON format with the follo
    - "start_timestamp": number (starting second in the recording as a numeric float, e.g. 52.59)
    - "end_timestamp": number (ending second in the recording as a numeric float, e.g. 66.15)
    - "kind": string (e.g. "Key Moment", "Decision", "Update", "Action Item")
+7. "participants": An array of strings representing the people who attended or spoke in the meeting. Identify individuals by their real names mentioned or addressed in the discussion (e.g. "Alan", "Thomas", "Mon", "Jay"), along with any distinct active speakers. Do not include duplicates.
 
 Transcript:
 ${formattedTranscript}`;
@@ -257,6 +259,18 @@ ${formattedTranscript}`;
         .filter((item) => item.title.length > 0)
     : [];
 
+  const parsedParticipants: string[] = Array.isArray(parsed.participants)
+    ? parsed.participants
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map((item) => item.trim())
+    : [];
+
+  const distinctSpeakerLabels = Array.from(
+    new Set(segments.map((s) => s.speaker?.trim()).filter((s): s is string => Boolean(s && s.length > 0)))
+  );
+
+  const participants = parsedParticipants.length > 0 ? parsedParticipants : distinctSpeakerLabels;
+
   return {
     summary,
     key_points: keyPoints,
@@ -264,5 +278,6 @@ ${formattedTranscript}`;
     action_items: actionItems,
     topics,
     highlights,
+    participants,
   };
 }

@@ -316,13 +316,22 @@ export async function POST(
       totalInserted += insertedData?.length || batch.length;
     }
 
-    // 8. Update meeting status to "analyzing"
+    // 8. Update meeting status to "analyzing" and store detected speakers
+    const distinctSpeakers = Array.from(
+      new Set(segments.map((s) => s.speaker?.trim()).filter(Boolean))
+    );
+
+    const updatePayload: Record<string, unknown> = {
+      status: "analyzing",
+      updated_at: new Date().toISOString(),
+    };
+    if (distinctSpeakers.length > 0) {
+      updatePayload.participants = distinctSpeakers;
+    }
+
     const { error: updateErr } = await supabase
       .from("meetings")
-      .update({
-        status: "analyzing",
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", meetingId);
 
     if (updateErr) {

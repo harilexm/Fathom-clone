@@ -225,14 +225,19 @@ export async function POST(
       }
     }
 
-    // D. Update meeting status to completed (with fallback to ready if migration constraint requires)
+    // D. Update meeting status to completed (with fallback to ready if migration constraint requires) and persist participants
     let finalStatus = "completed";
     const nowIso = new Date().toISOString();
+    const finalParticipants =
+      analysis.participants && analysis.participants.length > 0
+        ? analysis.participants
+        : Array.from(new Set(segments.map((s) => s.speaker?.trim()).filter(Boolean)));
 
     const { error: updateMeetErr } = await supabase
       .from("meetings")
       .update({
         status: "completed",
+        participants: finalParticipants,
         updated_at: nowIso,
       })
       .eq("id", meetingId);
@@ -247,6 +252,7 @@ export async function POST(
         .from("meetings")
         .update({
           status: "ready",
+          participants: finalParticipants,
           updated_at: nowIso,
         })
         .eq("id", meetingId);

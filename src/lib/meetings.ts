@@ -181,10 +181,41 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   else if (lowerStatus === "uploaded") statusText = "Uploaded";
   else if (lowerStatus === "pending") statusText = "Uploaded";
 
-  const participants =
+  let participants: string[] =
     Array.isArray(dbMeeting.participants) && dbMeeting.participants.length > 0
-      ? dbMeeting.participants
-      : ["You"];
+      ? dbMeeting.participants.map((p) => String(p).trim()).filter(Boolean)
+      : [];
+
+  // Fallback 1: Derive from transcript segments if available
+  if (participants.length === 0 && Array.isArray(dbMeeting.transcript_segments) && dbMeeting.transcript_segments.length > 0) {
+    participants = Array.from(
+      new Set(
+        dbMeeting.transcript_segments
+          .map((s) => (s.speaker || "").trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  // Fallback 2: Derive from action item owners if available
+  if (participants.length === 0 && Array.isArray(dbMeeting.action_items) && dbMeeting.action_items.length > 0) {
+    const genericRoles = new Set(["unassigned", "all", "team", "you", "team members"]);
+    const owners = Array.from(
+      new Set(
+        dbMeeting.action_items
+          .map((a) => (a.owner || "").trim())
+          .filter((o) => o && !genericRoles.has(o.toLowerCase()))
+      )
+    );
+    if (owners.length > 0) {
+      participants = owners;
+    }
+  }
+
+  // Fallback 3: Single user fallback
+  if (participants.length === 0) {
+    participants = ["You"];
+  }
 
   const summaryVersion = dbMeeting.summary_versions
     ?.filter((item) => (item.summary || item.content || "").trim() || (Array.isArray(item.overview) && item.overview.length > 0))

@@ -54,5 +54,36 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (meetings && meetings.length > 0) {
+    const emptyMeetings = meetings.filter(
+      (m) => !Array.isArray(m.participants) || m.participants.length === 0
+    );
+    if (emptyMeetings.length > 0) {
+      const emptyIds = emptyMeetings.map((m) => m.id);
+      const { data: segs } = await supabase
+        .from("transcript_segments")
+        .select("meeting_id, speaker")
+        .in("meeting_id", emptyIds);
+
+      if (segs && segs.length > 0) {
+        const speakersMap = new Map<string, Set<string>>();
+        for (const s of segs) {
+          const spk = (s.speaker || "").trim();
+          if (!spk) continue;
+          if (!speakersMap.has(s.meeting_id)) speakersMap.set(s.meeting_id, new Set());
+          speakersMap.get(s.meeting_id)!.add(spk);
+        }
+
+        for (const m of emptyMeetings) {
+          const foundSpeakers = Array.from(speakersMap.get(m.id) || []);
+          if (foundSpeakers.length > 0) {
+            m.participants = foundSpeakers;
+            supabase.from("meetings").update({ participants: foundSpeakers }).eq("id", m.id).then();
+          }
+        }
+      }
+    }
+  }
+
   return NextResponse.json({ meetings: meetings || [] });
 }
