@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPresignedDownloadUrl } from "@/lib/r2";
 import { submitSonioxAsyncTranscription, getSonioxTranscriptionStatus } from "@/lib/soniox";
+import { calculateCreditsRequired, checkUserCredits, getUserCreditsBalance } from "@/lib/credits";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -114,13 +115,36 @@ export async function POST(
       );
     }
 
-    // 4. Generate temporary signed R2 GET URL (valid for 1 hour)
+    // 4. Verify user has enough credits before processing starts
+    // Rule: 1 started minute = 1 credit, credits_required = ceil(duration_seconds / 60)
+    const durationSeconds =
+      meeting.duration_seconds ||
+      meeting.duration ||
+      recording.duration_seconds ||
+      recording.duration ||
+      0;
+    const creditsRequired = calculateCreditsRequired(durationSeconds);
+    const creditCheck = await checkUserCredits(user.id, creditsRequired, durationSeconds);
+
+    if (!creditCheck.hasEnough) {
+      return NextResponse.json(
+        {
+          error: creditCheck.error || "Insufficient credits to process this meeting",
+          creditsRequired,
+          creditsBalance: creditCheck.balance,
+          durationSeconds,
+        },
+        { status: 402 }
+      );
+    }
+
+    // 5. Generate temporary signed R2 GET URL (valid for 1 hour)
     const signedDownloadUrl = await createPresignedDownloadUrl({
       objectKey: recording.r2_object_key,
       expiresIn: 3600,
     });
 
-    // 5. Submit recording to Soniox async STT with speaker diarization and timestamps
+    // 6. Submit recording to Soniox async STT with speaker diarization and timestamps
     const sonioxResponse = await submitSonioxAsyncTranscription({
       audioUrl: signedDownloadUrl,
       clientReferenceId: `meeting_${meeting.id}`,
@@ -212,7 +236,7 @@ export async function GET(
 
     const { data: meeting, error: meetErr } = await supabase
       .from("meetings")
-      .select("id, user_id, status, soniox_job_id, transcription_job_id")
+      .select("id, user_id, status, soniox_job_id, transcription_job_id, duration, duration_seconds")
       .eq("id", meetingId)
       .maybeSingle();
 
@@ -235,11 +259,20 @@ export async function GET(
 
     const sonioxStatus = await getSonioxTranscriptionStatus(jobId);
 
+    const durationSeconds =
+      meeting.duration_seconds || meeting.duration || 0;
+    const creditsRequired = calculateCreditsRequired(durationSeconds);
+    const userCredits = await getUserCreditsBalance(user.id);
+
     return NextResponse.json({
       meetingId,
       status: meeting.status,
       jobId,
       sonioxStatus,
+      durationSeconds,
+      creditsRequired,
+      creditsBalance: userCredits,
+      hasEnoughCredits: userCredits >= creditsRequired,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
