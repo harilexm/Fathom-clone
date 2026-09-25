@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const privatePaths = ["/my-calls", "/team-calls", "/playlists", "/insights", "/settings", "/search", "/meeting", "/pricing", "/faqs", "/privacy-policy", "/terms-of-service", "/security-compliance", "/onboarding"];
+const privatePaths = ["/my-calls", "/team-calls", "/playlists", "/insights", "/settings", "/search", "/meeting", "/pricing", "/faqs", "/security-compliance", "/onboarding"];
 
 function redirectWithCookies(source: NextResponse, destination: URL) {
   const response = NextResponse.redirect(destination);
@@ -39,7 +39,7 @@ export async function updateSession(request: NextRequest) {
   if (!signedIn && privatePaths.some((base) => path === base || path.startsWith(base + "/"))) {
     return redirectWithCookies(response, new URL("/login", request.url));
   }
-  if (signedIn && (path === "/login" || path === "/")) {
+  if (signedIn && path === "/login") {
     let destination = "/onboarding";
     const { error: bootstrapError } = await supabase.rpc("ensure_profile");
     if (!bootstrapError) {

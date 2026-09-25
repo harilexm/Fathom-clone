@@ -17,8 +17,8 @@ export type AccountDetails = {
 const links = [
   { href: "/pricing", label: "Pricing" },
   { href: "/faqs", label: "FAQs" },
-  { href: "/privacy-policy", label: "Privacy Policy" },
-  { href: "/terms-of-service", label: "Terms of Service" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms of Service" },
   { href: "/security-compliance", label: "Security & Compliance" },
 ];
 

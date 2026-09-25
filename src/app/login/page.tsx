@@ -39,7 +39,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <div className="w-full max-w-[400px] shrink-0">
           <LoginForm initialError={error ? errors[error] ?? errors.callback : null} />
           <p className="mt-6 text-center text-[11.5px] text-muted">
-            By using Fathom, you agree to the <Link href="/terms-of-service" className="underline hover:text-[#f1f5f9]">Terms of Service</Link> and <Link href="/privacy-policy" className="underline hover:text-[#f1f5f9]">Privacy Policy</Link>.
+            By using Fathom, you agree to the <Link href="/terms" className="underline hover:text-[#f1f5f9]">Terms of Service</Link> and <Link href="/privacy" className="underline hover:text-[#f1f5f9]">Privacy Policy</Link>.
           </p>
         </div>
       </div>
