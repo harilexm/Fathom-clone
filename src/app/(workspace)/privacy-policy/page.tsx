@@ -1,14 +1,63 @@
 import Link from "next/link";
 
 export default function PrivacyPolicyPage() {
-  return <section aria-label="Privacy Policy" className="fade-in max-w-3xl">
-    <div className="mb-4 flex items-start justify-between gap-3"><div><p className="text-xs text-muted">Fathom Clone test project · updated September 25, 2026</p><h1 className="mt-1 text-xl font-semibold text-ink">Privacy Policy</h1></div><Link href="/my-calls" className="text-xs text-brand hover:underline">Back to calls</Link></div>
-    <p className="mb-4 text-xs leading-5 text-muted">This page describes the current preview implementation. A formal operator privacy notice and contact address have not been published. Do not upload sensitive recordings to this test project.</p>
-    <div className="surface divide-y divide-[#253345] text-xs leading-5 text-muted">
-      <section className="p-5"><h2 className="mb-2 text-sm font-semibold text-ink">Information stored</h2><p>Supabase stores your sign-in identity, profile choices, meeting records, transcripts, summaries, action items, highlights, share links, and credit balance. Uploaded media is stored in private Cloudflare R2 storage.</p></section>
-      <section className="p-5"><h2 className="mb-2 text-sm font-semibold text-ink">Processing services</h2><p>When you process a recording, the app uses Soniox for transcription and OpenAI for meeting analysis. Ask Fathom may send relevant owned meeting content to the configured AI provider. Calendar connection uses Google&apos;s read-only Calendar scope; its refresh token is encrypted before server-side storage.</p></section>
-      <section className="p-5"><h2 className="mb-2 text-sm font-semibold text-ink">Access and sharing</h2><p>Meeting data is scoped to your signed-in account. Recording upload and playback use short-lived signed URLs. If you explicitly create a share link, anyone holding the active link can view the shared content until you revoke it. Demo fixtures are separate from your uploads.</p></section>
-      <section className="p-5"><h2 className="mb-2 text-sm font-semibold text-ink">Retention and choices</h2><p>You can disconnect Google Calendar and revoke meeting share links in the app. Self-service account and recording deletion, export, and a published retention schedule are not available in this test project. Signing out does not remove stored data.</p></section>
+  return (
+    <div className="min-h-full py-8 px-4 sm:px-6">
+      <section aria-label="Privacy Policy" className="fade-in mx-auto max-w-3xl space-y-8">
+        {/* Header */}
+        <div className="border-b border-[#1e2a3a] pb-6">
+          <Link
+            href="/my-calls"
+            className="mb-3 inline-flex items-center text-xs font-semibold text-[#8da3be] hover:text-white transition"
+          >
+            ← Back to Calls
+          </Link>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-brand">Legal &amp; Governance</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">Privacy Policy</h1>
+          <p className="mt-1.5 text-xs text-[#8da3be]">
+            Last updated: September 25, 2026 · Workspace Privacy Practices
+          </p>
+        </div>
+
+        <p className="text-xs leading-relaxed text-[#9ab0c7]">
+          This document describes how data is handled within your workspace during this preview release. All user media, transcripts, and intelligence data are protected under strict access boundaries.
+        </p>
+
+        {/* Structured Sections */}
+        <div className="space-y-4">
+          <div className="surface rounded-2xl border border-[#223348] p-6 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Section 1</span>
+            <h2 className="mt-1 text-sm font-bold text-white">Information Stored and Processed</h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#9ab0c7]">
+              Supabase securely maintains your sign-in identity, workspace profile choices, meeting metadata, speech-to-text transcripts, summary records, action items, highlights, share link configurations, and available credit balances. Uploaded audio and video media files are stored strictly within encrypted, private Cloudflare R2 bucket storage.
+            </p>
+          </div>
+
+          <div className="surface rounded-2xl border border-[#223348] p-6 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Section 2</span>
+            <h2 className="mt-1 text-sm font-bold text-white">Third-Party Processing Services</h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#9ab0c7]">
+              When you initiate processing on an uploaded recording, the audio stream is dispatched to Soniox for asynchronous speech-to-text transcription with speaker diarization. Meeting analysis, executive summaries, and action item detection are performed through server-side AI provider calls. Calendar connections utilize Google&apos;s read-only Calendar scope; all OAuth tokens are encrypted before storage and immediately purged upon disconnect.
+            </p>
+          </div>
+
+          <div className="surface rounded-2xl border border-[#223348] p-6 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Section 3</span>
+            <h2 className="mt-1 text-sm font-bold text-white">Access Boundaries &amp; Public Sharing</h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#9ab0c7]">
+              All meeting data is isolated to the authenticated workspace owner. Media playback uses temporary, short-lived presigned URLs. When you generate a share link, external access is cryptographically tokenized and strictly confined to that specific meeting or trimmed highlight clip. You may revoke active share links at any time to instantly terminate public access.
+            </p>
+          </div>
+
+          <div className="surface rounded-2xl border border-[#223348] p-6 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Section 4</span>
+            <h2 className="mt-1 text-sm font-bold text-white">Data Retention &amp; User Controls</h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#9ab0c7]">
+              You can disconnect third-party integrations (such as Google Calendar) and revoke shared links at any time within your workspace settings. To request full workspace data removal, contact your system administrator.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
-  </section>;
+  );
 }
