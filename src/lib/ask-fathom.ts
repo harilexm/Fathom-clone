@@ -15,7 +15,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { findMeeting, type Meeting } from "@/lib/sample-data";
+import { findMeeting, meetings, type Meeting } from "@/lib/sample-data";
 import { getOpenAiApiKey, getOpenAiAnalysisModel } from "@/lib/openai";
 import { getAnthropicApiKey, getAnthropicChatModel, isAnthropicConfigured } from "@/lib/anthropic";
 
@@ -88,11 +88,16 @@ const GENERIC_INTENT_WORDS = new Set([
   "points", "theme", "themes", "topic", "topics", "decision", "decisions",
   "takeaway", "takeaways", "outcome", "outcomes", "note", "notes", "summary",
   "summaries", "summarize", "overview", "follow", "followup", "follow-up",
-  "draft", "email", "discussed", "discussion", "talk", "talked", "mention",
-  "mentioned", "detail", "details", "update", "updates", "status", "review",
-  "reviewing", "check", "share", "sharing", "video", "videos", "recording",
-  "recordings", "call", "calls", "meeting", "meetings", "recent", "latest",
-  "past", "last", "first", "agenda", "question", "questions"
+  "email", "discussed", "discussion", "discussions", "talk", "talked", "talking",
+  "mention", "mentioned", "detail", "details", "update", "updates", "status",
+  "review", "reviewing", "check", "share", "sharing", "video", "videos",
+  "recording", "recordings", "call", "calls", "meeting", "meetings", "recent",
+  "latest", "past", "last", "first", "agenda", "question", "questions",
+  "important", "happen", "happened", "happening", "conversation", "conversations",
+  "thing", "things", "everything", "recap", "recaps", "information",
+  "highlight", "highlights", "said", "say", "saying", "speak", "spoke",
+  "speaking", "hear", "heard", "tell", "told", "anyone", "someone", "people",
+  "time", "times", "date", "dates", "day", "days", "week", "weeks"
 ]);
 
 function extractKeywords(query: string): string[] {
@@ -102,6 +107,16 @@ function extractKeywords(query: string): string[] {
     .split(/\s+/)
     .map((w) => w.trim())
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+function toStem(word: string): string {
+  const w = word.toLowerCase();
+  if (w.endsWith("ing") && w.length > 5) return w.slice(0, -3);
+  if (w.endsWith("ies") && w.length > 5) return w.slice(0, -3) + "y";
+  if (w.endsWith("es") && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) return w.slice(0, -1);
+  if (w.endsWith("ed") && w.length > 4) return w.slice(0, -2);
+  return w;
 }
 
 interface QuerySignals {
@@ -405,8 +420,8 @@ async function askMeetingScope({
     };
   }
 
-  // 3. Load only this meeting's components: transcript, summary, actions, decisions, highlights
-  const [sumRes, actRes, hlRes, segRes] = await Promise.all([
+  // 3. Load this meeting's full components, plus other recorded calls for cross-call awareness
+  const [sumRes, actRes, hlRes, segRes, otherMeetingsRes] = await Promise.all([
     supabase
       .from("summary_versions")
       .select("version, summary, content, overview")
@@ -424,12 +439,88 @@ async function askMeetingScope({
       .select("sequence, speaker, text, start_time, end_time")
       .eq("meeting_id", cleanId)
       .order("sequence", { ascending: true }),
+    supabase
+      .from("meetings")
+      .select("id, title, meeting_time, created_at, participants")
+      .eq("user_id", user.id)
+      .neq("id", cleanId)
+      .in("status", ["completed", "ready"])
+      .order("meeting_time", { ascending: false })
+      .limit(8),
   ]);
 
   const summaries = sumRes.data || [];
   const actions = actRes.data || [];
   const highlights = hlRes.data || [];
   const segments = segRes.data || [];
+  const otherMeetings = otherMeetingsRes.data || [];
+
+  let otherSummaries: Array<{ meeting_id: string; summary?: string; content?: string; overview?: unknown }> = [];
+  let otherActions: Array<{ meeting_id: string; task?: string; text?: string; owner?: string }> = [];
+  let otherSegments: Array<{ meeting_id: string; speaker: string; text: string; start_time: number }> = [];
+
+  if (otherMeetings.length > 0) {
+    const otherIds = otherMeetings.map((m) => m.id);
+    const searchTerms = extractKeywords(question);
+    const searchStems = Array.from(new Set(searchTerms.map(toStem).filter((s) => s.length > 2)));
+
+    const [oSumRes, oActRes, oSegRes] = await Promise.all([
+      supabase
+        .from("summary_versions")
+        .select("meeting_id, summary, content, overview")
+        .in("meeting_id", otherIds),
+      supabase
+        .from("action_items")
+        .select("meeting_id, task, text, owner")
+        .in("meeting_id", otherIds),
+      searchStems.length > 0
+        ? supabase
+            .from("transcript_segments")
+            .select("meeting_id, speaker, text, start_time")
+            .in("meeting_id", otherIds)
+            .or(searchStems.slice(0, 5).map((k) => `text.ilike.%${k}%`).join(","))
+            .limit(24)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    otherSummaries = oSumRes.data || [];
+    otherActions = oActRes.data || [];
+    otherSegments = oSegRes.data || [];
+  }
+
+  let otherCallsContext = "";
+  if (otherMeetings.length > 0) {
+    const otherLines = otherMeetings.map((om) => {
+      const s = otherSummaries.find((sum) => sum.meeting_id === om.id);
+      const sText = (s?.summary || s?.content || "").trim();
+      const overviewList = Array.isArray(s?.overview)
+        ? s.overview.filter((item): item is string => typeof item === "string" && item.trim().length > 0).slice(0, 4)
+        : [];
+      const mActs = otherActions.filter((a) => a.meeting_id === om.id).slice(0, 3);
+      const mSegs = otherSegments.filter((seg) => seg.meeting_id === om.id).slice(0, 2);
+
+      const parts = [`- Call: "${om.title}" (${om.meeting_time || om.created_at || "Earlier"})`];
+      if (Array.isArray(om.participants) && om.participants.length > 0) {
+        parts.push(`  Participants: ${om.participants.join(", ")}`);
+      }
+      if (sText) {
+        parts.push(`  Summary: ${sText}`);
+      }
+      if (overviewList.length > 0) {
+        parts.push(`  Key Decisions & Points: ${overviewList.join(" | ")}`);
+      }
+      if (mActs.length > 0) {
+        parts.push(`  Action Items: ${mActs.map((a) => `${a.task || a.text}${a.owner ? ` (${a.owner})` : ""}`).join("; ")}`);
+      }
+      if (mSegs.length > 0) {
+        parts.push(`  Relevant Dialogue: ${mSegs.map((seg) => `[${formatTime(Number(seg.start_time))}] ${seg.speaker}: "${seg.text}"`).join(" | ")}`);
+      }
+      return parts.join("\n");
+    });
+    otherCallsContext = `\n\n=== OTHER RECORDED CALLS IN USER'S LIBRARY (For Cross-Call Reference) ===
+(Primary priority is "${meeting.title}". If the user asks about related earlier discussions, previous meetings, or whether something was discussed before, use these calls to provide accurate cross-meeting context):
+${otherLines.join("\n\n")}`;
+  }
 
   const primarySummary =
     summaries.find((s) => s.version === "enhanced") ||
@@ -485,16 +576,17 @@ ${actionLines.length > 0 ? actionLines.join("\n") : "No action items recorded."}
 ${highlightLines.length > 0 ? highlightLines.join("\n") : "No highlights recorded."}
 
 === FULL TRANSCRIPT ===
-${transcriptLines.length > 0 ? transcriptLines.join("\n") : "No transcript segments recorded."}`;
+${transcriptLines.length > 0 ? transcriptLines.join("\n") : "No transcript segments recorded."}${otherCallsContext}`;
 
-  const systemPrompt = `You are Ask Fathom, an AI assistant answering questions about a specific meeting.
-You must ONLY use the provided meeting transcript, summary, action items, decisions/topics, and highlights.
-Strict Grounding Rules:
-1. Base your answer strictly on what is stated in the provided context for this meeting.
-2. Do not fabricate facts, extrapolate beyond what was said, or refer to any external or imaginary meetings.
-3. If the answer cannot be found in this meeting's context, state clearly: "That was not discussed or mentioned in this meeting."
-4. Provide structured, executive-ready responses with GitHub-flavored markdown (bullet points, bold text).
-5. When referencing statements or insights from the transcript, cite the speaker name and timestamp (e.g. "Speaker 1 [02:15]").`;
+  const systemPrompt = `You are Ask Fathom, an AI executive assistant helping the user while they are viewing the meeting: "${meeting.title}".
+
+Prioritization & Context Rules:
+1. Primary Priority (Current Call): Give "${meeting.title}" the highest priority. If the user asks about what was discussed, decisions made, action items, or attendees, answer from this meeting first.
+2. Cross-Call Awareness & Earlier Meetings: If the user asks whether a topic was discussed before, asks about an earlier call, or asks about a topic or person that was NOT discussed in this current meeting but WAS discussed in an earlier meeting (e.g., "Did we talk about this before?", "What did Danny discuss in that earlier meeting?", "What happened with the script?"):
+   - Review the "OTHER RECORDED CALLS IN USER'S LIBRARY" section.
+   - Explain with clear cross-meeting context: state that while it was not discussed in this meeting ("${meeting.title}"), it occurred in the earlier meeting ("<Meeting Title>" on <Date>) and provide the accurate details.
+3. Grounding & Anti-Fabrication: Do not fabricate facts. If a topic was neither in this meeting nor in any other recorded call, state clearly that it was not discussed.
+4. When citing quotes from the current meeting, cite speaker names and timestamps (e.g., "[02:15] Speaker").`;
 
   const userPrompt = `Meeting Context:
 ${meetingContext}
@@ -510,32 +602,18 @@ ${question}`;
     simulateOpenAiFailure,
   });
 
-  const sources: AskSourceReference[] = [];
-  if (summaryText) {
-    sources.push({
+  // 1 source per meeting: the summary-level reference
+  const sources: AskSourceReference[] = [
+    {
       meetingId: meeting.id,
       meetingTitle: meeting.title,
+      meetingDate: meeting.meeting_time || meeting.created_at || "Recent",
       type: "summary",
-      snippet: summaryText.slice(0, 160) + (summaryText.length > 160 ? "..." : ""),
-    });
-  }
-  for (const h of highlights.slice(0, 3)) {
-    sources.push({
-      meetingId: meeting.id,
-      meetingTitle: meeting.title,
-      type: "highlight",
-      snippet: h.title,
-      timestamp: formatTime(Number(h.start_timestamp)),
-    });
-  }
-  for (const a of actions.slice(0, 3)) {
-    sources.push({
-      meetingId: meeting.id,
-      meetingTitle: meeting.title,
-      type: "action_item",
-      snippet: a.task || a.text || "",
-    });
-  }
+      snippet: summaryText
+        ? summaryText.slice(0, 160) + (summaryText.length > 160 ? "..." : "")
+        : "Meeting context used",
+    },
+  ];
 
   return {
     answer: fullText,
@@ -569,6 +647,21 @@ async function handleSampleMeetingScope(
     (t) => `[${t.time}] ${t.speaker}: ${t.text}`
   );
 
+  const otherSampleCalls = meetings
+    .filter((m) => m.id !== sample.id)
+    .slice(0, 4)
+    .map((m) => {
+      const attendees = (m.attendees || []).join(", ");
+      const actions = (m.actions || []).map((a) => `${a.text} (${a.owner})`).join("; ");
+      const overviews = (m.overview || []).slice(0, 3).join(" | ");
+      return `- Earlier Recording: "${m.title}" (${m.date})
+  Attendees: ${attendees || "Team"}
+  Summary: ${m.summary || "Sample call"}
+  Key Decisions & Points: ${overviews || "None"}
+  Action Items: ${actions || "None"}`;
+    })
+    .join("\n\n");
+
   const contextStr = `MEETING TITLE: "${sample.title}"
 DATE: ${sample.date}
 ATTENDEES: ${(sample.attendees || []).join(", ")}
@@ -586,13 +679,21 @@ ${actionLines.join("\n")}
 ${highlightLines.join("\n")}
 
 === FULL TRANSCRIPT ===
-${transcriptLines.join("\n")}`;
+${transcriptLines.join("\n")}
 
-  const systemPrompt = `You are Ask Fathom, an AI assistant answering questions about a specific meeting.
-You must ONLY use the provided meeting transcript, summary, action items, decisions/topics, and highlights.
-Base your answer strictly on what is stated in the provided context for this meeting.
-If the answer cannot be found in this meeting, state that clearly without guessing.
-Provide well-structured answers using markdown. Cite speakers and timestamps when referencing dialogue.`;
+=== OTHER RECORDED CALLS IN LIBRARY (For Cross-Call Reference) ===
+(Primary priority is "${sample.title}". If the user asks about related earlier discussions, previous meetings, or whether something was discussed before, use these calls to provide accurate cross-meeting context):
+${otherSampleCalls}`;
+
+  const systemPrompt = `You are Ask Fathom, an AI assistant answering questions while the user is viewing the meeting: "${sample.title}".
+
+Prioritization & Context Rules:
+1. Primary Priority (Current Call): Give "${sample.title}" the highest priority. If the user asks about what was discussed, decisions made, action items, or attendees, answer from this meeting first.
+2. Cross-Call Context (Earlier Meetings): If the user asks about related topics, previous discussions, or questions whether something was discussed before (e.g. "Did we talk about this before?", "What happened in the earlier call?"):
+   - Review the "OTHER RECORDED CALLS IN LIBRARY" section.
+   - Explain with clear cross-meeting context that while it wasn't in this meeting ("${sample.title}"), it occurred in the earlier meeting ("<Meeting Title>" on <Date>) and provide the details.
+3. Base your answer strictly on the provided context. If the answer cannot be found in this meeting or earlier recorded calls, state that clearly without guessing.
+4. Provide well-structured answers using markdown. Cite speakers and timestamps when referencing dialogue.`;
 
   const userPrompt = `Meeting Context:
 ${contextStr}
@@ -634,8 +735,8 @@ ${question}`;
 
 /**
  * Handle My Calls scope.
- * Searches ONLY the authenticated user's processed meetings and retrieves
- * ONLY the most relevant meeting/transcript context instead of sending every transcript.
+ * Searches the authenticated user's processed meetings AND sample/demo meetings,
+ * retrieves ONLY the most relevant meeting/transcript context instead of sending every transcript.
  */
 async function askMyCallsScope({
   question,
@@ -645,19 +746,52 @@ async function askMyCallsScope({
   onChunk,
   simulateOpenAiFailure,
 }: AskFathomParams): Promise<AskFathomResult> {
-  // 1. Fetch only the authenticated user's processed meetings
+  // 1. Fetch the authenticated user's processed meetings (up to 10 recordings)
   const { data: dbMeetings, error: mErr } = await supabase
     .from("meetings")
     .select("id, user_id, title, status, duration, duration_seconds, meeting_time, created_at, participants")
     .eq("user_id", user.id)
     .in("status", ["completed", "ready"])
-    .order("meeting_time", { ascending: false });
+    .order("meeting_time", { ascending: false })
+    .limit(10);
 
   if (mErr) {
     throw new Error(`Failed to query processed meetings: ${mErr.message}`);
   }
 
-  if (!dbMeetings || dbMeetings.length === 0) {
+  // 1b. Merge sample/demo meetings into the candidate pool.
+  // Sample meetings are fixture data always visible in the UI; they use in-memory
+  // summaries/actions/highlights/transcripts (no Supabase queries needed).
+  const dbIds = new Set((dbMeetings || []).map((m) => m.id));
+  const sampleCandidates = meetings.filter((m) => !dbIds.has(m.id));
+
+  // Unified candidate type: id, title, date, participants, isSample flag
+  interface UnifiedMeeting {
+    id: string;
+    title: string;
+    dateStr: string;
+    participants: string[];
+    isSample: boolean;
+  }
+
+  const allCandidates: UnifiedMeeting[] = [
+    ...(dbMeetings || []).map((m) => ({
+      id: m.id,
+      title: m.title || "Untitled Meeting",
+      dateStr: m.meeting_time || m.created_at || "Recent",
+      participants: Array.isArray(m.participants) ? m.participants as string[] : [],
+      isSample: false,
+    })),
+    ...sampleCandidates.map((m) => ({
+      id: m.id,
+      title: m.title,
+      dateStr: m.date || "Demo",
+      participants: m.attendees || [],
+      isSample: true,
+    })),
+  ];
+
+  if (allCandidates.length === 0) {
     const notice = "You do not have any processed calls in **My Calls** yet. Once your meeting recordings have completed transcription and AI analysis, you will be able to search and ask questions across all your calls here.";
     if (onChunk) onChunk(notice);
     return {
@@ -669,85 +803,150 @@ async function askMyCallsScope({
     };
   }
 
-  // 2. Extract search signals (entity vs generic intent vs recency)
+  // 2. Extract search signals
   const signals = extractQuerySignals(question);
-  const { entityKeywords, intentKeywords, recencyCount } = signals;
-  const meetingIds = dbMeetings.map((m) => m.id);
+  const { keywords, entityKeywords } = signals;
+  const dbMeetingIds = (dbMeetings || []).map((m) => m.id);
 
-  // 3. Fetch summary versions, action items, and highlights for candidate processed meetings
-  const [sumRes, actRes, hlRes] = await Promise.all([
-    supabase
-      .from("summary_versions")
-      .select("meeting_id, version, summary, content, overview")
-      .in("meeting_id", meetingIds),
-    supabase
-      .from("action_items")
-      .select("meeting_id, task, text, owner, due_date, completed")
-      .in("meeting_id", meetingIds),
-    supabase
-      .from("highlights")
-      .select("meeting_id, title, kind, text, start_timestamp, end_timestamp")
-      .in("meeting_id", meetingIds),
-  ]);
+  // 3. Fetch summary versions, action items, and highlights for DB meetings only
+  // (sample meetings use in-memory data)
+  let allSummaries: Array<{ meeting_id: string; version?: string; summary?: string; content?: string; overview?: unknown }> = [];
+  let allActions: Array<{ meeting_id: string; task?: string; text?: string; owner?: string; due_date?: string; completed?: boolean }> = [];
+  let allHighlights: Array<{ meeting_id: string; title?: string; kind?: string; text?: string; start_timestamp?: number; end_timestamp?: number }> = [];
 
-  const allSummaries = sumRes.data || [];
-  const allActions = actRes.data || [];
-  const allHighlights = hlRes.data || [];
+  if (dbMeetingIds.length > 0) {
+    const [sumRes, actRes, hlRes] = await Promise.all([
+      supabase
+        .from("summary_versions")
+        .select("meeting_id, version, summary, content, overview")
+        .in("meeting_id", dbMeetingIds),
+      supabase
+        .from("action_items")
+        .select("meeting_id, task, text, owner, due_date, completed")
+        .in("meeting_id", dbMeetingIds),
+      supabase
+        .from("highlights")
+        .select("meeting_id, title, kind, text, start_timestamp, end_timestamp")
+        .in("meeting_id", dbMeetingIds),
+    ]);
+    allSummaries = sumRes.data || [];
+    allActions = actRes.data || [];
+    allHighlights = hlRes.data || [];
+  }
 
-  // 4. Targeted transcript search: search only for matching transcript segments
-  // Search priority: entity keywords first, then intent keywords
-  const searchTerms = entityKeywords.length > 0 ? entityKeywords : intentKeywords;
-  let matchingSegments: Array<{
-    meeting_id: string;
-    speaker: string;
-    text: string;
-    start_time: number;
-    sequence: number;
-  }> = [];
+  // 3b. Inject sample meeting data into the same arrays so scoring works uniformly
+  for (const sm of sampleCandidates) {
+    allSummaries.push({
+      meeting_id: sm.id,
+      version: "standard",
+      summary: sm.summary || "",
+      overview: sm.overview || [],
+    });
+    for (const a of (sm.actions || [])) {
+      allActions.push({
+        meeting_id: sm.id,
+        task: a.text,
+        text: a.text,
+        owner: a.owner,
+        due_date: a.due,
+        completed: a.done,
+      });
+    }
+    for (const h of (sm.highlights || [])) {
+      allHighlights.push({
+        meeting_id: sm.id,
+        title: h.title,
+        kind: h.kind,
+        text: h.text || "",
+        start_timestamp: h.startTimeSec ?? 0,
+        end_timestamp: h.endTimeSec ?? 0,
+      });
+    }
+  }
 
-  if (searchTerms.length > 0) {
-    const orFilters = searchTerms
-      .slice(0, 3)
+  // 4. Targeted transcript search across DB calls + sample transcript keyword matching
+  const searchTerms = keywords.length > 0 ? keywords : [];
+  const searchStems = Array.from(new Set(searchTerms.map(toStem).filter((s) => s.length > 2)));
+
+  const segmentsByMeeting = new Map<string, Array<{ speaker: string; text: string; start_time: number }>>();
+
+  // 4a. DB transcript segments
+  if (searchStems.length > 0 && dbMeetingIds.length > 0) {
+    const orFilters = searchStems
+      .slice(0, 5)
       .map((k) => `text.ilike.%${k}%`)
       .join(",");
 
     const { data: segData } = await supabase
       .from("transcript_segments")
       .select("meeting_id, speaker, text, start_time, sequence")
-      .in("meeting_id", meetingIds)
+      .in("meeting_id", dbMeetingIds)
       .or(orFilters)
-      .limit(16);
+      .limit(50);
 
     if (segData && segData.length > 0) {
-      matchingSegments = segData;
+      for (const seg of segData) {
+        const list = segmentsByMeeting.get(seg.meeting_id) || [];
+        if (list.length < 4) {
+          list.push({ speaker: seg.speaker, text: seg.text, start_time: Number(seg.start_time) });
+          segmentsByMeeting.set(seg.meeting_id, list);
+        }
+      }
     }
   }
 
-  // 5. Score meetings with strong entity prioritization
-  const meetingEntityScores = new Map<string, number>();
-  const meetingGeneralScores = new Map<string, number>();
+  // 4b. Sample transcript keyword matching (in-memory)
+  if (searchStems.length > 0) {
+    for (const sm of sampleCandidates) {
+      const matchedTurns: Array<{ speaker: string; text: string; start_time: number }> = [];
+      for (const t of (sm.transcript || [])) {
+        const tLower = t.text.toLowerCase();
+        if (searchStems.some((stem) => tLower.includes(stem))) {
+          matchedTurns.push({ speaker: t.speaker, text: t.text, start_time: t.startTimeSec ?? 0 });
+          if (matchedTurns.length >= 4) break;
+        }
+      }
+      if (matchedTurns.length > 0) {
+        segmentsByMeeting.set(sm.id, matchedTurns);
+      }
+    }
+  }
 
-  dbMeetings.forEach((m, idx) => {
+  // 5. Score ALL candidates (DB + sample) for relevance
+  const meetingRelevanceScores = new Map<string, number>();
+  const meetingEntityScores = new Map<string, number>();
+
+  allCandidates.forEach((m, idx) => {
+    let relevanceScore = 0;
     let entityScore = 0;
-    let generalScore = 0;
 
     const titleLower = (m.title || "").toLowerCase();
-    const participantsLower = (Array.isArray(m.participants) ? m.participants.join(" ") : "").toLowerCase();
+    const participantsLower = m.participants.join(" ").toLowerCase();
 
-    // Check entity matches (names, companies, distinct words)
+    // Check entity matches
     for (const kw of entityKeywords) {
-      if (titleLower.includes(kw)) entityScore += 100;
-      if (participantsLower.includes(kw)) entityScore += 60;
+      const stem = toStem(kw);
+      if (titleLower.includes(kw) || titleLower.includes(stem)) entityScore += 100;
+      if (participantsLower.includes(kw) || participantsLower.includes(stem)) entityScore += 60;
+    }
+
+    // Check general keyword matches
+    for (const term of searchTerms) {
+      const stem = toStem(term);
+      if (titleLower.includes(term) || titleLower.includes(stem)) relevanceScore += 80;
+      if (participantsLower.includes(term) || participantsLower.includes(stem)) relevanceScore += 50;
     }
 
     const mSummaries = allSummaries.filter((s) => s.meeting_id === m.id);
     for (const s of mSummaries) {
       const text = ((s.summary || "") + " " + (Array.isArray(s.overview) ? s.overview.join(" ") : "")).toLowerCase();
       for (const kw of entityKeywords) {
-        if (text.includes(kw)) entityScore += 25;
+        const stem = toStem(kw);
+        if (text.includes(kw) || text.includes(stem)) entityScore += 30;
       }
-      for (const kw of intentKeywords) {
-        if (text.includes(kw)) generalScore += 10;
+      for (const term of searchTerms) {
+        const stem = toStem(term);
+        if (text.includes(term) || text.includes(stem)) relevanceScore += 20;
       }
     }
 
@@ -755,10 +954,12 @@ async function askMyCallsScope({
     for (const a of mActions) {
       const text = ((a.task || a.text || "") + " " + (a.owner || "")).toLowerCase();
       for (const kw of entityKeywords) {
-        if (text.includes(kw)) entityScore += 25;
+        const stem = toStem(kw);
+        if (text.includes(kw) || text.includes(stem)) entityScore += 30;
       }
-      for (const kw of intentKeywords) {
-        if (text.includes(kw)) generalScore += 10;
+      for (const term of searchTerms) {
+        const stem = toStem(term);
+        if (text.includes(term) || text.includes(stem)) relevanceScore += 20;
       }
     }
 
@@ -766,42 +967,45 @@ async function askMyCallsScope({
     for (const h of mHighlights) {
       const text = ((h.title || "") + " " + (h.text || "")).toLowerCase();
       for (const kw of entityKeywords) {
-        if (text.includes(kw)) entityScore += 20;
+        const stem = toStem(kw);
+        if (text.includes(kw) || text.includes(stem)) entityScore += 25;
       }
-      for (const kw of intentKeywords) {
-        if (text.includes(kw)) generalScore += 8;
+      for (const term of searchTerms) {
+        const stem = toStem(term);
+        if (text.includes(term) || text.includes(stem)) relevanceScore += 15;
       }
     }
 
-    const segMatches = matchingSegments.filter((s) => s.meeting_id === m.id).length;
-    if (entityKeywords.length > 0) {
-      entityScore += segMatches * 20;
-    } else {
-      generalScore += segMatches * 10;
+    const mSegs = segmentsByMeeting.get(m.id) || [];
+    if (mSegs.length > 0) {
+      relevanceScore += mSegs.length * 25;
+      for (const seg of mSegs) {
+        const segLower = seg.text.toLowerCase();
+        for (const kw of entityKeywords) {
+          const stem = toStem(kw);
+          if (segLower.includes(kw) || segLower.includes(stem)) {
+            entityScore += 25;
+            break;
+          }
+        }
+      }
     }
 
-    // Recency factor: primary for generic recency queries, mild tiebreaker otherwise
-    if (recencyCount && idx < recencyCount) {
-      generalScore += 100;
-    } else {
-      generalScore += Math.max(0, 20 - idx * 2);
-    }
+    // Subtle chronological recency tiebreaker
+    relevanceScore += Math.max(0, 3 - idx * 0.2);
 
     meetingEntityScores.set(m.id, entityScore);
-    meetingGeneralScores.set(m.id, generalScore);
+    meetingRelevanceScores.set(m.id, relevanceScore);
   });
 
-  // 6. Candidate Filtering
-  let candidateMeetings = [...dbMeetings];
+  // 6. Grounded check: if user asked about a specific unknown entity that matches NO calls
+  let selectedMeetings = [...allCandidates];
 
   if (entityKeywords.length > 0) {
-    const maxEntityScore = Math.max(...dbMeetings.map((m) => meetingEntityScores.get(m.id) || 0));
-
+    const maxEntityScore = Math.max(...allCandidates.map((m) => meetingEntityScores.get(m.id) || 0));
     if (maxEntityScore === 0) {
-      // User asked about a specific entity/topic (e.g. "Acme"), but NO meetings match it!
-      // Do NOT contaminate with unrelated meetings!
       const entityTerms = entityKeywords.map((k) => `**"${k}"**`).join(" or ");
-      const notice = `No meetings or calls matching ${entityTerms} were found in your processed calls library. Please verify the name or select a specific meeting from your library.`;
+      const notice = `No meetings or calls matching ${entityTerms} were found in your calls library. Please verify the name or select a specific meeting from your library.`;
       if (onChunk) onChunk(notice);
       return {
         answer: notice,
@@ -812,34 +1016,29 @@ async function askMyCallsScope({
       };
     }
 
-    // Only include meetings that actually matched the entity!
-    candidateMeetings = candidateMeetings.filter((m) => (meetingEntityScores.get(m.id) || 0) > 0);
-    // Sort strictly by entity score, using general/recency score as tiebreaker
-    candidateMeetings.sort((a, b) => {
+    // Only include meetings that actually matched the specific entity/topic
+    selectedMeetings = selectedMeetings.filter((m) => (meetingEntityScores.get(m.id) || 0) > 0);
+    selectedMeetings.sort((a, b) => {
       const eA = meetingEntityScores.get(a.id) || 0;
       const eB = meetingEntityScores.get(b.id) || 0;
       if (eB !== eA) return eB - eA;
-      return (meetingGeneralScores.get(b.id) || 0) - (meetingGeneralScores.get(a.id) || 0);
+      return (meetingRelevanceScores.get(b.id) || 0) - (meetingRelevanceScores.get(a.id) || 0);
     });
   } else {
-    // Broad/intent question: sort by general score (which includes recency & intent keywords)
-    candidateMeetings.sort((a, b) => {
-      return (meetingGeneralScores.get(b.id) || 0) - (meetingGeneralScores.get(a.id) || 0);
-    });
+    // Broad/general question: sort by overall relevance and keep all recordings in context
+    selectedMeetings.sort((a, b) => (meetingRelevanceScores.get(b.id) || 0) - (meetingRelevanceScores.get(a.id) || 0));
   }
 
-  const maxMeetingsToInclude = recencyCount
-    ? Math.min(recencyCount, candidateMeetings.length)
-    : Math.min(4, candidateMeetings.length);
-
-  const selectedMeetings = candidateMeetings.slice(0, maxMeetingsToInclude);
-
-  // 7. Build focused cross-meeting context
-  // NOTE: Retrieve only the most relevant context, never every full transcript!
+  // 7. Build focused context for EACH selected recording
+  // Sources: 1 per meeting (summary-level reference). Transcript segments are used
+  // for LLM context only, NOT pushed as individual sources.
   const sources: AskSourceReference[] = [];
   const meetingContextBlocks: string[] = [];
 
   for (const m of selectedMeetings) {
+    // For sample meetings, look up in-memory data; for DB meetings, use fetched arrays
+    const sampleMeeting = m.isSample ? sampleCandidates.find((s) => s.id === m.id) : null;
+
     const mSummary =
       allSummaries.find((s) => s.meeting_id === m.id && s.version === "enhanced") ||
       allSummaries.find((s) => s.meeting_id === m.id && s.version === "standard") ||
@@ -847,55 +1046,52 @@ async function askMyCallsScope({
 
     const mActions = allActions.filter((a) => a.meeting_id === m.id);
     const mHighlights = allHighlights.filter((h) => h.meeting_id === m.id);
-    const mSegments = matchingSegments.filter((s) => s.meeting_id === m.id);
 
-    const dateStr = m.meeting_time || m.created_at || "Recent";
-    const participantsList = Array.isArray(m.participants) && m.participants.length > 0
-      ? m.participants.join(", ")
-      : "You";
+    // Transcript excerpts: from segmentsByMeeting for keyword matches,
+    // or for sample meetings include first few turns as general context
+    let mSegments = segmentsByMeeting.get(m.id) || [];
+    if (mSegments.length === 0 && sampleMeeting) {
+      mSegments = (sampleMeeting.transcript || []).slice(0, 3).map((t) => ({
+        speaker: t.speaker,
+        text: t.text,
+        start_time: t.startTimeSec ?? 0,
+      }));
+    }
 
     const summaryText = (mSummary?.summary || mSummary?.content || "").trim();
     const overviewPoints = Array.isArray(mSummary?.overview)
-      ? mSummary.overview.filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+      ? (mSummary.overview as unknown[]).filter((p): p is string => typeof p === "string" && p.trim().length > 0)
       : [];
 
-    if (summaryText) {
-      sources.push({
-        meetingId: m.id,
-        meetingTitle: m.title,
-        meetingDate: dateStr,
-        type: "summary",
-        snippet: summaryText.slice(0, 150) + "...",
-      });
-    }
+    // Push exactly 1 source per meeting (summary-level reference)
+    sources.push({
+      meetingId: m.id,
+      meetingTitle: m.title,
+      meetingDate: m.dateStr,
+      type: "summary",
+      snippet: summaryText ? summaryText.slice(0, 150) + (summaryText.length > 150 ? "..." : "") : "Meeting context used",
+    });
 
-    const actionSnippets = mActions.slice(0, 4).map((a) => {
+    const actionSnippets = mActions.slice(0, 5).map((a) => {
       const task = a.task || a.text || "";
       const owner = a.owner ? ` (${a.owner})` : "";
       return `• ${task}${owner}`;
     });
 
     const highlightSnippets = mHighlights.slice(0, 3).map((h) => {
-      return `• "${h.title}" [${formatTime(Number(h.start_timestamp))}]`;
+      return `• "${h.title}" [${formatTime(Number(h.start_timestamp ?? 0))}]`;
     });
 
-    const transcriptSnippets = mSegments.slice(0, 4).map((s) => {
-      sources.push({
-        meetingId: m.id,
-        meetingTitle: m.title,
-        type: "transcript",
-        speaker: s.speaker,
-        timestamp: formatTime(Number(s.start_time)),
-        snippet: s.text,
-      });
+    // Transcript snippets for LLM context only (not added to sources)
+    const transcriptSnippets = mSegments.map((s) => {
       return `[${formatTime(Number(s.start_time))}] ${s.speaker}: "${s.text}"`;
     });
 
     const block = `### Call: "${m.title}"
-Date: ${dateStr}
-Attendees: ${participantsList}
-Summary: ${summaryText || "No summary available"}
-Key Points / Decisions:
+Date: ${m.dateStr}
+Attendees: ${m.participants.length > 0 ? m.participants.join(", ") : "You"}
+Executive Summary: ${summaryText || "No summary available"}
+Key Decisions & Points:
 ${overviewPoints.length > 0 ? overviewPoints.map((p) => `• ${p}`).join("\n") : "None specified"}
 Action Items:
 ${actionSnippets.length > 0 ? actionSnippets.join("\n") : "None detected"}
@@ -907,17 +1103,18 @@ ${transcriptSnippets.length > 0 ? transcriptSnippets.join("\n") : "(No specific 
     meetingContextBlocks.push(block);
   }
 
-  const systemPrompt = `You are Ask Fathom, an AI executive meeting assistant answering across the user's processed meeting library ('My Calls').
-Strict Grounding Rules:
-1. Base your answer strictly on the provided relevant meeting summaries, decisions, action items, and transcript excerpts.
-2. Only reference meetings present in the provided context.
-3. Attribute your findings to the specific call title(s) and dates (e.g. "In '[Call Title]' ([Date])...").
-4. If asked to summarize multiple calls, provide a clear structured breakdown or cross-call comparison as requested.
-5. If the user's question asks for something not mentioned in any of their processed calls, clearly state that it was not found in their calls rather than guessing.
-6. Provide concise, professional, well-formatted answers using GitHub-flavored markdown.
-7. Anti-Contamination Rule: NEVER attribute discussions, action items, or participants from one meeting to a different meeting, company, or participant. If the user asked about a specific company, person, or call that is not present in the provided context, explicitly state that no matching information was found rather than substituting an unrelated meeting.`;
+  const systemPrompt = `You are Ask Fathom, an AI executive meeting assistant answering across the user's entire meeting library ('My Calls').
+You have access to structured context for EACH recorded call in the user's library.
 
-  const userPrompt = `Retrieved Relevant Calls Context:
+Context & Multi-Meeting Rules:
+1. Complete Call Awareness: You have context of EACH recording in the user's library. Do NOT stick or default to the first call only. Review ALL provided calls to identify which meeting or meetings discuss the user's query.
+2. Specific Topic Identification: If the user asks about a specific person, topic, project, incident, or deliverable (e.g., Danny, script, FIPS, unmuting, COVID, Acme, etc.), identify the exact call where it occurred and answer citing that call's title and date.
+3. Cross-Call Summaries & Comparisons: If the user asks a broad question across calls (e.g. "What did we talk about in our calls?", "What are next steps across all calls?"), provide a clear, structured breakdown covering all relevant calls.
+4. Call Distinction: Clearly attribute findings to the specific call title and date (e.g. "In '[Call Title]' ([Date])...").
+5. Grounding & Anti-Fabrication: If a topic, person, or company was not mentioned in ANY of the user's calls, clearly state that it was not found in their recorded calls rather than making up information or confusing calls.
+6. Format your responses with clean, readable GitHub-flavored markdown.`;
+
+  const userPrompt = `User's Recorded Calls Library Context:
 ${meetingContextBlocks.join("\n\n---\n\n")}
 
 User Question:

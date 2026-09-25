@@ -209,10 +209,25 @@ export async function GET(request: NextRequest) {
       date: m.meeting_time || m.created_at,
     }));
 
+    // Include sample/demo meetings so the panel dropdown stays consistent
+    // with what askMyCallsScope can actually search.
+    const { meetings: sampleMeetings } = await import("@/lib/sample-data");
+    const dbIdSet = new Set(processedMeetings.map((m) => m.id));
+    const sampleEntries = sampleMeetings
+      .filter((m) => !dbIdSet.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        title: m.title,
+        status: m.status || "Ready",
+        date: m.date || "Demo",
+      }));
+
+    const allProcessedMeetings = [...processedMeetings, ...sampleEntries];
+
     return NextResponse.json({
       scopes: [
         { id: "my-calls", label: "My Calls", type: "library" },
-        ...processedMeetings.map((m) => ({
+        ...allProcessedMeetings.map((m) => ({
           id: m.id,
           label: m.title,
           type: "meeting",
@@ -220,7 +235,7 @@ export async function GET(request: NextRequest) {
           date: m.date,
         })),
       ],
-      processedMeetings,
+      processedMeetings: allProcessedMeetings,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
