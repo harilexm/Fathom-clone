@@ -55,8 +55,7 @@ export function MeetingList({ meetings }: { meetings: Meeting[] }) {
                 variant="ghost"
                 ariaLabel={"Actions for " + meeting.title}
                 items={[
-                  { label: "Open meeting", onClick: () => router.push("/meeting/" + meeting.id) },
-                  { label: "Export (coming later)", disabled: true }
+                  { label: "Open meeting", onClick: () => router.push("/meeting/" + meeting.id) }
                 ]}
               />
             </div>
