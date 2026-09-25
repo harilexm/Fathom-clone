@@ -1,4 +1,5 @@
 import type { Meeting } from "@/lib/sample-data";
+import { calculateCreditsRequired } from "@/lib/credits";
 
 const SPEAKER_COLORS = [
   "bg-[#283d61] text-[#c3d5ff]",
@@ -293,6 +294,8 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
     date: dateFormatted,
     time: timeFormatted,
     duration: durationText,
+    durationSeconds: durationSec,
+    creditsRequired: calculateCreditsRequired(durationSec),
     attendees: participants,
     category: dbMeeting.source === "upload" ? "Upload" : "Internal",
     status: statusText,

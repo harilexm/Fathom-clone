@@ -1426,9 +1426,12 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                   onClick={handleStartTranscription}
                   disabled={isTranscribingLoading}
                   className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+                  title={currentMeeting.creditsRequired ? `Requires ${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"} to process` : undefined}
                 >
                   <Sparkles size={12} />
-                  {isTranscribingLoading ? "Submitting to Soniox..." : "Transcribe"}
+                  {isTranscribingLoading
+                    ? "Submitting to Soniox..."
+                    : `Transcribe${currentMeeting.creditsRequired ? ` (${currentMeeting.creditsRequired} credit${currentMeeting.creditsRequired === 1 ? "" : "s"})` : ""}`}
                 </button>
               )}
               {statusLower === "transcribing" && (
@@ -1456,7 +1459,10 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
             </div>
           )}
           {transcribeError && (
-            <p className="mt-1 text-xs text-rose-400">{transcribeError}</p>
+            <div role="alert" className="mt-2.5 flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-950/40 p-2.5 text-xs text-rose-300">
+              <span className="shrink-0 font-bold" aria-hidden="true">⚠️</span>
+              <p className="leading-snug">{transcribeError}</p>
+            </div>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs text-muted">
             <ParticipantAvatars people={currentMeeting.attendees} maxVisible={4} />

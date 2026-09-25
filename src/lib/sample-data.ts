@@ -33,6 +33,8 @@ export type Meeting = {
   summaryAvailable?: boolean;
   summaryVersion?: string;
   shareToken?: string;
+  durationSeconds?: number;
+  creditsRequired?: number;
   shareLinks?: Array<{
     id: string;
     token: string;

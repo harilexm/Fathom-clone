@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getR2Client, getR2Config, createPresignedDownloadUrl } from "@/lib/r2";
 import { probeR2MediaDuration } from "@/lib/media-duration";
 import { submitSonioxAsyncTranscription } from "@/lib/soniox";
+import { calculateCreditsRequired, checkUserCredits } from "@/lib/credits";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -265,52 +266,77 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Trigger Soniox async speech-to-text transcription
-    try {
-      const downloadUrl = await createPresignedDownloadUrl({
-        objectKey,
-        expiresIn: 3600,
-      });
+    // Check user credits before automatic media processing starts
+    const creditsRequired = calculateCreditsRequired(durationSeconds);
+    const creditCheck = await checkUserCredits(user.id, creditsRequired, durationSeconds);
 
-      const sonioxJob = await submitSonioxAsyncTranscription({
-        audioUrl: downloadUrl,
-        clientReferenceId: `meeting_${meetingRecord.id}`,
-        enableSpeakerDiarization: true,
-      });
+    let processingBlocked = false;
+    let processingMessage: string | undefined;
 
-      if (sonioxJob?.id) {
-        const nowIso = new Date().toISOString();
-        const { data: transcribingMeeting } = await supabase
-          .from("meetings")
-          .update({
-            status: "transcribing",
-            soniox_job_id: sonioxJob.id,
-            transcription_job_id: sonioxJob.id,
-            updated_at: nowIso,
-          })
-          .eq("id", meetingRecord.id)
-          .select()
-          .single();
+    if (!creditCheck.hasEnough) {
+      processingBlocked = true;
+      processingMessage = creditCheck.error;
+      console.warn(`Transcription auto-dispatch blocked for user ${user.id}: ${creditCheck.error}`);
 
-        await supabase
-          .from("recordings")
-          .update({
-            status: "transcribing",
-            soniox_job_id: sonioxJob.id,
-            transcription_job_id: sonioxJob.id,
-            updated_at: nowIso,
-          })
-          .eq("id", recordingRecord.id);
-
-        if (transcribingMeeting) {
-          meetingRecord = transcribingMeeting;
-        } else {
-          meetingRecord.status = "transcribing";
-        }
-        recordingRecord.status = "transcribing";
+      if (body.enforceCredits === true) {
+        return NextResponse.json(
+          {
+            error: creditCheck.error,
+            creditsRequired,
+            creditsBalance: creditCheck.balance,
+            durationSeconds,
+          },
+          { status: 402 }
+        );
       }
-    } catch (sonioxErr) {
-      console.warn("Async Soniox transcription auto-dispatch deferred/failed:", sonioxErr);
+    } else {
+      // Trigger Soniox async speech-to-text transcription
+      try {
+        const downloadUrl = await createPresignedDownloadUrl({
+          objectKey,
+          expiresIn: 3600,
+        });
+
+        const sonioxJob = await submitSonioxAsyncTranscription({
+          audioUrl: downloadUrl,
+          clientReferenceId: `meeting_${meetingRecord.id}`,
+          enableSpeakerDiarization: true,
+        });
+
+        if (sonioxJob?.id) {
+          const nowIso = new Date().toISOString();
+          const { data: transcribingMeeting } = await supabase
+            .from("meetings")
+            .update({
+              status: "transcribing",
+              soniox_job_id: sonioxJob.id,
+              transcription_job_id: sonioxJob.id,
+              updated_at: nowIso,
+            })
+            .eq("id", meetingRecord.id)
+            .select()
+            .single();
+
+          await supabase
+            .from("recordings")
+            .update({
+              status: "transcribing",
+              soniox_job_id: sonioxJob.id,
+              transcription_job_id: sonioxJob.id,
+              updated_at: nowIso,
+            })
+            .eq("id", recordingRecord.id);
+
+          if (transcribingMeeting) {
+            meetingRecord = transcribingMeeting;
+          } else {
+            meetingRecord.status = "transcribing";
+          }
+          recordingRecord.status = "transcribing";
+        }
+      } catch (sonioxErr) {
+        console.warn("Async Soniox transcription auto-dispatch deferred/failed:", sonioxErr);
+      }
     }
 
     return NextResponse.json(
@@ -318,6 +344,10 @@ export async function POST(request: NextRequest) {
         success: true,
         meeting: meetingRecord,
         recording: recordingRecord,
+        processingBlocked,
+        creditsRequired,
+        creditsBalance: creditCheck.balance,
+        ...(processingMessage ? { warning: processingMessage } : {}),
       },
       { status: 201 },
     );

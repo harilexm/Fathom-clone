@@ -6,6 +6,7 @@ import {
   getSonioxTranscript,
   aggregateTokensToSegments,
 } from "@/lib/soniox";
+import { deductProcessingCredits, hasMeetingBeenCharged } from "@/lib/credits";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -96,7 +97,7 @@ export async function POST(
     // 1. Fetch meeting and verify ownership
     const { data: meeting, error: meetErr } = await supabase
       .from("meetings")
-      .select("id, user_id, status, soniox_job_id, transcription_job_id")
+      .select("id, user_id, status, soniox_job_id, transcription_job_id, duration, duration_seconds")
       .eq("id", meetingId)
       .maybeSingle();
 
@@ -123,11 +124,13 @@ export async function POST(
     }
 
     // Idempotency: If meeting is already past transcribing (analyzing/ready), return early
-    if (meeting.status === "analyzing" || meeting.status === "ready") {
+    if (meeting.status === "analyzing" || meeting.status === "ready" || meeting.status === "completed") {
       const { count } = await supabase
         .from("transcript_segments")
         .select("id", { count: "exact", head: true })
         .eq("meeting_id", meetingId);
+
+      const alreadyCharged = await hasMeetingBeenCharged(meetingId);
 
       return NextResponse.json({
         success: true,
@@ -135,6 +138,8 @@ export async function POST(
         status: meeting.status,
         jobId,
         segmentCount: count || 0,
+        alreadyCharged,
+        creditsDeducted: 0,
         message: `Transcript already saved. Meeting status: ${meeting.status}`,
       });
     }
@@ -246,10 +251,10 @@ export async function POST(
       });
     }
 
-    // 6. Get the recording ID for FK reference
+    // 6. Get the recording ID and duration for FK reference
     const { data: recording } = await supabase
       .from("recordings")
-      .select("id")
+      .select("id, duration, duration_seconds")
       .eq("meeting_id", meetingId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -335,6 +340,25 @@ export async function POST(
         .eq("id", recording.id);
     }
 
+    // 9. Processing completed successfully: Deduct credits once idempotently
+    // Rule: 1 started minute = 1 credit, credits_required = ceil(duration_seconds / 60)
+    // Retries, duplicate webhooks or refreshes can never charge twice
+    const maxSegmentEnd =
+      segments.length > 0 ? Math.ceil(segments[segments.length - 1].end_time) : 0;
+    const effectiveDuration =
+      meeting.duration_seconds ||
+      meeting.duration ||
+      recording?.duration_seconds ||
+      recording?.duration ||
+      maxSegmentEnd;
+
+    const creditResult = await deductProcessingCredits({
+      userId: meeting.user_id,
+      meetingId,
+      durationSeconds: effectiveDuration,
+      recordingId: recording?.id,
+    });
+
     return NextResponse.json({
       success: true,
       meetingId,
@@ -342,6 +366,10 @@ export async function POST(
       jobId,
       segmentCount: totalInserted,
       speakerCount: new Set(segments.map((s) => s.speaker)).size,
+      creditsDeducted: creditResult.deducted,
+      creditsBalance: creditResult.balance,
+      alreadyCharged: creditResult.alreadyCharged,
+      transactionId: creditResult.transactionId,
       message: `Saved ${totalInserted} transcript segments from ${new Set(segments.map((s) => s.speaker)).size} speakers.`,
     });
   } catch (err) {

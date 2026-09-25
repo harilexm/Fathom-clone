@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { analyzeMeetingWithOpenAi } from "@/lib/openai";
+import { deductProcessingCredits } from "@/lib/credits";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -68,7 +69,7 @@ export async function POST(
     // 1. Fetch meeting and verify ownership
     const { data: meeting, error: meetErr } = await supabase
       .from("meetings")
-      .select("id, user_id, title, status")
+      .select("id, user_id, title, status, duration, duration_seconds")
       .eq("id", meetingId)
       .maybeSingle();
 
@@ -248,10 +249,25 @@ export async function POST(
       })
       .eq("meeting_id", meetingId);
 
+    // E. Ensure media-processing credits are deducted idempotently (if not already charged in transcription)
+    const effectiveDuration =
+      meeting.duration_seconds ||
+      meeting.duration ||
+      (segments.length > 0 ? Math.ceil(segments[segments.length - 1].end_time) : 0);
+
+    const creditResult = await deductProcessingCredits({
+      userId: meeting.user_id,
+      meetingId,
+      durationSeconds: effectiveDuration,
+    });
+
     return NextResponse.json({
       success: true,
       meetingId,
       status: finalStatus,
+      creditsDeducted: creditResult.deducted,
+      creditsBalance: creditResult.balance,
+      alreadyCharged: creditResult.alreadyCharged,
       analysis: {
         summary: analysis.summary,
         keyPointsCount: analysis.key_points.length,

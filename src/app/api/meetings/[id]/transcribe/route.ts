@@ -248,21 +248,25 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const durationSeconds =
+      meeting.duration_seconds || meeting.duration || 0;
+    const creditsRequired = calculateCreditsRequired(durationSeconds);
+    const userCredits = await getUserCreditsBalance(user.id);
+
     const jobId = meeting.soniox_job_id || meeting.transcription_job_id;
     if (!jobId) {
       return NextResponse.json({
         meetingId,
         status: meeting.status,
         jobId: null,
+        durationSeconds,
+        creditsRequired,
+        creditsBalance: userCredits,
+        hasEnoughCredits: userCredits >= creditsRequired,
       });
     }
 
     const sonioxStatus = await getSonioxTranscriptionStatus(jobId);
-
-    const durationSeconds =
-      meeting.duration_seconds || meeting.duration || 0;
-    const creditsRequired = calculateCreditsRequired(durationSeconds);
-    const userCredits = await getUserCreditsBalance(user.id);
 
     return NextResponse.json({
       meetingId,
