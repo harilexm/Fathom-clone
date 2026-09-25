@@ -204,6 +204,11 @@ export function PendingContent({
     <div role="status" className="rounded-xl border border-dashed border-[#2b3b4e] px-4 py-10 text-center">
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-2 text-xs text-muted">{message}</p>
+      {isTranscribing && type === "transcript" && meeting.sonioxJobId && (
+        <p className="mt-3 inline-block rounded bg-[#101722] px-2.5 py-1 font-mono text-[11px] text-muted border border-[#1e2a3a]">
+          Soniox Job ID: {meeting.sonioxJobId}
+        </p>
+      )}
     </div>
   );
 }
@@ -515,10 +520,38 @@ export function SharePreviewModal({
 }
 
 export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { meeting: Meeting; playbackUrl?: string; recordingMimeType?: string }) {
+  const [currentMeeting, setCurrentMeeting] = useState(meeting);
   const [tab, setTab] = useState("summary");
   const [shareOpen, setShareOpen] = useState(false);
   const [meetingDuration, setMeetingDuration] = useState(meeting.duration);
   const [doneIds, setDoneIds] = useState<string[]>(meeting.actions.filter((item) => item.done).map((item) => item.id));
+  const [isTranscribingLoading, setIsTranscribingLoading] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
+
+  async function handleStartTranscription() {
+    if (isTranscribingLoading || currentMeeting.isDemo) return;
+    try {
+      setIsTranscribingLoading(true);
+      setTranscribeError(null);
+      const res = await fetch(`/api/meetings/${currentMeeting.id}/transcribe`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to start transcription");
+      }
+      setCurrentMeeting((prev) => ({
+        ...prev,
+        status: "Transcribing",
+        analysisStatus: "transcribing",
+        sonioxJobId: data.jobId || prev.sonioxJobId,
+      }));
+    } catch (err) {
+      setTranscribeError(err instanceof Error ? err.message : "Failed to start transcription");
+    } finally {
+      setIsTranscribingLoading(false);
+    }
+  }
 
   function toggleDone(id: string) {
     setDoneIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -529,11 +562,11 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
       setMeetingDuration(formatMeetingDuration(durSec));
     }
     // Asynchronously notify backend to persist duration in database if real meeting
-    if (!meeting.isDemo && meeting.id && durSec > 0) {
+    if (!currentMeeting.isDemo && currentMeeting.id && durSec > 0) {
       fetch("/api/recordings/duration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ meetingId: meeting.id, durationSeconds: durSec }),
+        body: JSON.stringify({ meetingId: currentMeeting.id, durationSeconds: durSec }),
       }).catch(() => {});
     }
   };
@@ -546,29 +579,45 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-            <span suppressHydrationWarning>{meeting.date}</span>
+            <span suppressHydrationWarning>{currentMeeting.date}</span>
             <span>·</span>
-            <span suppressHydrationWarning>{meeting.time}</span>
+            <span suppressHydrationWarning>{currentMeeting.time}</span>
             <span>·</span>
             <span>{meetingDuration}</span>
           </div>
-          <h1 className="max-w-4xl break-words text-[21px] font-semibold leading-tight tracking-tight sm:text-[24px]">{meeting.title}</h1>
-          {!meeting.isDemo && (
-            <span
-              role="status"
-              className={
-                "mt-2 inline-block rounded px-2 py-1 text-xs font-semibold " +
-                (meeting.status?.toLowerCase() === "transcribing"
-                  ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
-                  : "bg-[#132b43] text-brand")
-              }
-            >
-              {meeting.status}
-            </span>
+          <h1 className="max-w-4xl break-words text-[21px] font-semibold leading-tight tracking-tight sm:text-[24px]">{currentMeeting.title}</h1>
+          {!currentMeeting.isDemo && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span
+                role="status"
+                className={
+                  "inline-block rounded px-2 py-1 text-xs font-semibold " +
+                  (currentMeeting.status?.toLowerCase() === "transcribing"
+                    ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
+                    : "bg-[#132b43] text-brand")
+                }
+              >
+                {currentMeeting.status}
+              </span>
+              {(currentMeeting.status?.toLowerCase() === "uploaded" || currentMeeting.status?.toLowerCase() === "pending") && (
+                <button
+                  type="button"
+                  onClick={handleStartTranscription}
+                  disabled={isTranscribingLoading}
+                  className="inline-flex items-center gap-1.5 rounded bg-brand px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+                >
+                  <Sparkles size={12} />
+                  {isTranscribingLoading ? "Submitting to Soniox..." : "Transcribe"}
+                </button>
+              )}
+            </div>
+          )}
+          {transcribeError && (
+            <p className="mt-1 text-xs text-rose-400">{transcribeError}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs text-muted">
-            <ParticipantAvatars people={meeting.attendees} maxVisible={4} />
-            <span>{meeting.attendees.length} participants</span>
+            <ParticipantAvatars people={currentMeeting.attendees} maxVisible={4} />
+            <span>{currentMeeting.attendees.length} participants</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -619,14 +668,14 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
               ]} />
             </div>
             <div role="tabpanel" id="meeting-content-panel" aria-labelledby={"meeting-content-" + tab} className="p-4 sm:p-5">
-              {tab === "summary" && <SummaryPanel meeting={meeting} onTabChange={setTab} />}
-              {tab === "transcript" && <TranscriptPanel meeting={meeting} />}
-              {tab === "actions" && <ActionItemsPanel meeting={meeting} doneIds={doneIds} onToggle={toggleDone} />}
-              {tab === "highlights" && <HighlightsPanel meeting={meeting} />}
+              {tab === "summary" && <SummaryPanel meeting={currentMeeting} onTabChange={setTab} />}
+              {tab === "transcript" && <TranscriptPanel meeting={currentMeeting} />}
+              {tab === "actions" && <ActionItemsPanel meeting={currentMeeting} doneIds={doneIds} onToggle={toggleDone} />}
+              {tab === "highlights" && <HighlightsPanel meeting={currentMeeting} />}
             </div>
           </Card>
       </div>
-      <SharePreviewModal meeting={meeting} open={shareOpen} onClose={() => setShareOpen(false)} />
+      <SharePreviewModal meeting={currentMeeting} open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }
