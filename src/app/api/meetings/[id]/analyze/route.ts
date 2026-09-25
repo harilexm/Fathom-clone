@@ -112,6 +112,8 @@ export async function POST(
     }
 
     // 3. Run OpenAI analysis with structured validation
+    const summaryTemplate = user.user_metadata?.summary_template === "concise" ? "concise" : "standard";
+    const suggestHighlights = user.user_metadata?.highlight_preference !== "none";
     const analysis = await analyzeMeetingWithOpenAi(
       segments.map((s) => ({
         sequence: s.sequence,
@@ -120,7 +122,8 @@ export async function POST(
         start_time: Number(s.start_time),
         end_time: Number(s.end_time),
       })),
-      meeting.title
+      meeting.title,
+      summaryTemplate
     );
 
     // 4. Persistence with Idempotency (prevent duplicate results on retry)
@@ -190,10 +193,19 @@ export async function POST(
       }
     }
 
-    // C. Highlights: Clean up existing highlights and insert
-    await supabase.from("highlights").delete().eq("meeting_id", meetingId);
+    // Replace generated suggestions while preserving user-created highlights.
+    const { data: previousHighlights, error: previousError } = await supabase
+      .from("highlights").select("id, kind").eq("meeting_id", meetingId);
+    if (previousError) return NextResponse.json({ error: "Failed to load existing highlights" }, { status: 500 });
+    const generatedIds = (previousHighlights ?? [])
+      .filter((highlight) => !highlight.kind?.toLowerCase().startsWith("user"))
+      .map((highlight) => highlight.id);
+    if (generatedIds.length > 0) {
+      const { error: deleteError } = await supabase.from("highlights").delete().in("id", generatedIds);
+      if (deleteError) return NextResponse.json({ error: "Failed to replace suggested highlights" }, { status: 500 });
+    }
 
-    if (analysis.highlights.length > 0) {
+    if (suggestHighlights && analysis.highlights.length > 0) {
       const highlightRows = analysis.highlights.map((h) => ({
         meeting_id: meetingId,
         title: h.title,
@@ -274,11 +286,11 @@ export async function POST(
         decisionsCount: analysis.decisions.length,
         actionItemsCount: analysis.action_items.length,
         topicsCount: analysis.topics.length,
-        highlightsCount: analysis.highlights.length,
+        highlightsCount: suggestHighlights ? analysis.highlights.length : 0,
         actionItems: analysis.action_items,
         decisions: analysis.decisions,
         topics: analysis.topics,
-        highlights: analysis.highlights,
+        highlights: suggestHighlights ? analysis.highlights : [],
       },
     });
   } catch (err) {

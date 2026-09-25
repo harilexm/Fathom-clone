@@ -86,7 +86,8 @@ function parseTimestampNumber(val: unknown, fallback: number = 0): number {
  */
 export async function analyzeMeetingWithOpenAi(
   segments: TranscriptTurnInput[],
-  meetingTitle?: string
+  meetingTitle?: string,
+  summaryTemplate: "standard" | "concise" = "standard"
 ): Promise<MeetingAnalysisResult> {
   const apiKey = getOpenAiApiKey();
   const model = getOpenAiAnalysisModel();
@@ -116,7 +117,7 @@ You must return a single valid JSON object matching the requested schema with no
 
 Provide a comprehensive, structured analysis in valid JSON format with the following exact keys:
 
-1. "summary": A clear, executive overview paragraph (3-5 sentences) summarizing the main purpose, discussion flow, and conclusion of the meeting.
+1. "summary": ${summaryTemplate === "concise" ? "A concise overview of 1-2 sentences covering the main purpose and outcome of the meeting." : "A clear, executive overview paragraph (3-5 sentences) summarizing the main purpose, discussion flow, and conclusion of the meeting."}
 2. "key_points": An array of strings representing key discussion points, insights, and takeaways.
 3. "decisions": An array of strings representing concrete decisions, agreements, or outcomes reached during the call.
 4. "action_items": An array of objects with:
