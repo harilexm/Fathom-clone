@@ -156,6 +156,7 @@ export function mapDbMeetingToMeeting(dbMeeting: DbMeetingRecord): Meeting {
   if (lowerStatus === "ready") statusText = "Ready";
   else if (lowerStatus === "processing") statusText = "Processing";
   else if (lowerStatus === "transcribing") statusText = "Transcribing";
+  else if (lowerStatus === "analyzing") statusText = "Analyzing";
   else if (lowerStatus === "failed") statusText = "Failed";
   else if (lowerStatus === "uploaded") statusText = "Uploaded";
   else if (lowerStatus === "pending") statusText = "Uploaded";

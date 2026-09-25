@@ -127,6 +127,7 @@ export function PendingContent({
   const isFailed = meeting.analysisStatus === "failed";
   const isProcessing = meeting.analysisStatus === "processing";
   const isTranscribing = meeting.analysisStatus === "transcribing" || meeting.status?.toLowerCase() === "transcribing";
+  const isAnalyzing = meeting.analysisStatus === "analyzing" || meeting.status?.toLowerCase() === "analyzing";
   const isPending = meeting.analysisStatus === "uploaded" || meeting.analysisStatus === "pending" || !meeting.analysisStatus;
 
   let title: string;
@@ -165,6 +166,21 @@ export function PendingContent({
       transcript: "Soniox asynchronous Speech-to-Text transcription is in progress with speaker diarization and timestamps.",
       actions: "Action items will be extracted automatically once transcription and AI analysis complete.",
       highlights: "Key moments and highlights will be identified once audio processing completes.",
+    };
+    title = titles[type];
+    message = messages[type];
+  } else if (isAnalyzing) {
+    const titles: Record<string, string> = {
+      summary: "Summary pending",
+      transcript: "Transcript ready",
+      actions: "Action items pending",
+      highlights: "Highlights pending",
+    };
+    const messages: Record<string, string> = {
+      summary: "Transcription completed. AI summarization is ready to begin.",
+      transcript: "Speech-to-text transcript segments have been processed.",
+      actions: "Action items will be extracted automatically once AI analysis completes.",
+      highlights: "Key moments and highlights will be identified during AI analysis.",
     };
     title = titles[type];
     message = messages[type];
@@ -526,6 +542,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
   const [meetingDuration, setMeetingDuration] = useState(meeting.duration);
   const [doneIds, setDoneIds] = useState<string[]>(meeting.actions.filter((item) => item.done).map((item) => item.id));
   const [isTranscribingLoading, setIsTranscribingLoading] = useState(false);
+  const [isCheckingProgress, setIsCheckingProgress] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
   async function handleStartTranscription() {
@@ -553,6 +570,32 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
     }
   }
 
+  async function handleCheckProgress() {
+    if (isCheckingProgress || currentMeeting.isDemo) return;
+    try {
+      setIsCheckingProgress(true);
+      setTranscribeError(null);
+      const res = await fetch(`/api/meetings/${currentMeeting.id}/transcribe/complete`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to check transcription progress");
+      }
+      if (data.status === "analyzing" || data.success) {
+        window.location.reload();
+      } else {
+        setTranscribeError(
+          data.message || `Transcription is still in progress (${data.sonioxStatus || "processing"}).`
+        );
+      }
+    } catch (err) {
+      setTranscribeError(err instanceof Error ? err.message : "Failed to check progress");
+    } finally {
+      setIsCheckingProgress(false);
+    }
+  }
+
   function toggleDone(id: string) {
     setDoneIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
@@ -571,6 +614,18 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
     }
   };
 
+  const statusLower = currentMeeting.status?.toLowerCase();
+  const badgeClasses =
+    statusLower === "transcribing"
+      ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
+      : statusLower === "analyzing"
+        ? "bg-indigo-950/60 text-indigo-300 border border-indigo-500/30"
+        : statusLower === "ready"
+          ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
+          : statusLower === "failed"
+            ? "bg-rose-950/60 text-rose-300 border border-rose-500/30"
+            : "bg-[#132b43] text-brand";
+
   return (
     <div className="fade-in min-w-0">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
@@ -588,18 +643,10 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
           <h1 className="max-w-4xl break-words text-[21px] font-semibold leading-tight tracking-tight sm:text-[24px]">{currentMeeting.title}</h1>
           {!currentMeeting.isDemo && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span
-                role="status"
-                className={
-                  "inline-block rounded px-2 py-1 text-xs font-semibold " +
-                  (currentMeeting.status?.toLowerCase() === "transcribing"
-                    ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
-                    : "bg-[#132b43] text-brand")
-                }
-              >
+              <span role="status" className={`inline-block rounded px-2 py-1 text-xs font-semibold ${badgeClasses}`}>
                 {currentMeeting.status}
               </span>
-              {(currentMeeting.status?.toLowerCase() === "uploaded" || currentMeeting.status?.toLowerCase() === "pending") && (
+              {(statusLower === "uploaded" || statusLower === "pending") && (
                 <button
                   type="button"
                   onClick={handleStartTranscription}
@@ -608,6 +655,17 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                 >
                   <Sparkles size={12} />
                   {isTranscribingLoading ? "Submitting to Soniox..." : "Transcribe"}
+                </button>
+              )}
+              {statusLower === "transcribing" && (
+                <button
+                  type="button"
+                  onClick={handleCheckProgress}
+                  disabled={isCheckingProgress}
+                  className="inline-flex items-center gap-1.5 rounded bg-[#223247] hover:bg-[#2e425a] px-2.5 py-1 text-xs font-semibold text-[#b8d0e8] transition disabled:opacity-60 border border-[#38506a]"
+                >
+                  <Sparkles size={12} />
+                  {isCheckingProgress ? "Checking status..." : "Check progress"}
                 </button>
               )}
             </div>

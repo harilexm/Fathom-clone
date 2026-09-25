@@ -126,3 +126,131 @@ export async function getSonioxTranscriptionStatus(
   const result = (await response.json()) as SonioxTranscriptionResponse;
   return result;
 }
+
+/* ---------- Transcript retrieval ---------- */
+
+export interface SonioxToken {
+  text: string;
+  start_ms: number;
+  end_ms: number;
+  confidence: number;
+  speaker: string | null;
+  language?: string | null;
+  is_audio_event?: boolean | null;
+}
+
+export interface SonioxTranscriptResponse {
+  id: string;
+  text: string;
+  tokens: SonioxToken[];
+}
+
+/**
+ * Fetches the full transcript for a completed Soniox transcription job.
+ * Only callable when the job status is "completed".
+ */
+export async function getSonioxTranscript(
+  jobId: string
+): Promise<SonioxTranscriptResponse> {
+  const apiKey = getSonioxApiKey();
+
+  if (!jobId || !jobId.trim()) {
+    throw new Error("Job ID is required to fetch Soniox transcript");
+  }
+
+  const response = await fetch(
+    `${SONIOX_API_BASE}/transcriptions/${encodeURIComponent(jobId)}/transcript`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    let parsedMessage = errorBody;
+    try {
+      const json = JSON.parse(errorBody);
+      parsedMessage = json.message || json.error || errorBody;
+    } catch {
+      // Use raw errorBody
+    }
+    throw new Error(
+      `Soniox transcript fetch error (${response.status}): ${parsedMessage}`
+    );
+  }
+
+  return (await response.json()) as SonioxTranscriptResponse;
+}
+
+/* ---------- Token-to-segment aggregation ---------- */
+
+export interface TranscriptSegment {
+  speaker: string;
+  text: string;
+  start_time: number; // seconds (3 decimal places)
+  end_time: number;   // seconds (3 decimal places)
+  sequence: number;
+}
+
+/**
+ * Aggregates word-level Soniox tokens into contiguous speaker turn segments.
+ * Adjacent tokens from the same speaker are merged into a single segment.
+ */
+export function aggregateTokensToSegments(
+  tokens: SonioxToken[]
+): TranscriptSegment[] {
+  if (!tokens || tokens.length === 0) return [];
+
+  const segments: TranscriptSegment[] = [];
+  let currentSpeaker: string | null = null;
+  let currentText = "";
+  let startMs = 0;
+  let endMs = 0;
+  let sequence = 0;
+
+  for (const token of tokens) {
+    const speaker = token.speaker ?? "0";
+
+    // Speaker changed → flush current segment
+    if (speaker !== currentSpeaker && currentSpeaker !== null) {
+      const trimmed = currentText.trim();
+      if (trimmed) {
+        segments.push({
+          speaker: `Speaker ${currentSpeaker}`,
+          text: trimmed,
+          start_time: Math.round(startMs) / 1000,
+          end_time: Math.round(endMs) / 1000,
+          sequence,
+        });
+        sequence++;
+      }
+      currentText = "";
+      startMs = token.start_ms;
+    }
+
+    if (currentSpeaker === null) {
+      startMs = token.start_ms;
+    }
+
+    currentSpeaker = speaker;
+    currentText += token.text;
+    endMs = token.end_ms;
+  }
+
+  // Flush last segment
+  const trimmed = currentText.trim();
+  if (trimmed && currentSpeaker !== null) {
+    segments.push({
+      speaker: `Speaker ${currentSpeaker}`,
+      text: trimmed,
+      start_time: Math.round(startMs) / 1000,
+      end_time: Math.round(endMs) / 1000,
+      sequence,
+    });
+  }
+
+  return segments;
+}

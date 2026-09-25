@@ -29,8 +29,10 @@ export function MeetingList({ meetings }: { meetings: Meeting[] }) {
                   <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider " + (
                     meeting.status.toLowerCase() === "uploaded" ? "bg-brand/10 text-brand border border-brand/20" :
                     meeting.status.toLowerCase() === "transcribing" ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" :
+                    meeting.status.toLowerCase() === "analyzing" ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" :
                     meeting.status.toLowerCase() === "ready" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
                     meeting.status.toLowerCase() === "processing" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                    meeting.status.toLowerCase() === "failed" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
                     "bg-[#141c29] text-muted border border-[#1e2a3a]"
                   )}>
                     {meeting.status}

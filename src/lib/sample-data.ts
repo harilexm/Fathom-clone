@@ -10,7 +10,7 @@ export type Meeting = {
   duration: string;
   attendees: string[];
   category: string;
-  status: "Ready" | "Processing" | "Uploaded" | "Pending" | "Transcribing" | string;
+  status: "Ready" | "Processing" | "Uploaded" | "Pending" | "Transcribing" | "Analyzing" | "Failed" | string;
   accent: string;
   summary: string;
   overview: string[];
