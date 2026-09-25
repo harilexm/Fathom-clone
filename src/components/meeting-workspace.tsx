@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
   ArrowLeft, Bookmark, Check, CheckCircle2, ChevronRight, Circle,
@@ -295,10 +296,12 @@ export function TranscriptPanel({
   meeting,
   onSeek,
   onHighlightTurn,
+  jumpTimeSec,
 }: {
   meeting: Meeting;
   onSeek?: (timeSec: number) => void;
   onHighlightTurn?: (turn: TranscriptTurn) => void;
+  jumpTimeSec?: number;
 }) {
   const turns: TranscriptTurn[] = meeting.transcript;
   const [query, setQuery] = useState("");
@@ -313,6 +316,22 @@ export function TranscriptPanel({
   );
 
   const shown = visible.slice(0, limit);
+
+  useEffect(() => {
+    if (jumpTimeSec !== undefined && scrollArea.current) {
+      const matchIdx = turns.findIndex(
+        (t) => t.startTimeSec !== undefined && Math.abs(t.startTimeSec - jumpTimeSec) < 1.5
+      );
+      if (matchIdx >= limit) {
+        setLimit(matchIdx + 12);
+      }
+      const timer = setTimeout(() => {
+        const matchEl = scrollArea.current?.querySelector('[data-jump="true"]');
+        matchEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [jumpTimeSec, limit, turns]);
 
   if (turns.length === 0) {
     return <PendingContent meeting={meeting} type="transcript" />;
@@ -351,8 +370,17 @@ export function TranscriptPanel({
       </div>
       {visible.length ? (
         <ol ref={scrollArea} aria-label="Speaker transcript" className="space-y-1 lg:max-h-[720px] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
-          {shown.map((turn) => (
-            <li key={turn.id} className="group flex gap-3 rounded-xl px-2 py-4 hover:bg-[#152233]">
+          {shown.map((turn) => {
+            const isJumpMatch =
+              jumpTimeSec !== undefined &&
+              turn.startTimeSec !== undefined &&
+              Math.abs(turn.startTimeSec - jumpTimeSec) < 1.5;
+            return (
+            <li
+              key={turn.id}
+              data-jump={isJumpMatch ? "true" : undefined}
+              className={"group flex gap-3 rounded-xl px-2 py-4 transition " + (isJumpMatch ? "bg-[#182a40] border border-brand/60 ring-2 ring-brand/30 shadow-lg" : "hover:bg-[#152233]")}
+            >
               <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold " + turn.color}>{turn.initials}</span>
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
@@ -386,7 +414,8 @@ export function TranscriptPanel({
                 <p className="break-words text-[13px] leading-6 text-[#acbbcc]">{turn.text}</p>
               </div>
             </li>
-          ))}
+          );
+        })}
         </ol>
       ) : (
         <div role="status" className="rounded-xl border border-dashed border-[#2b3b4e] px-4 py-12 text-center">
@@ -1133,8 +1162,19 @@ export function ShareModal({
 export const SharePreviewModal = ShareModal;
 
 export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { meeting: Meeting; playbackUrl?: string; recordingMimeType?: string }) {
+  const searchParams = useSearchParams();
+  const initialTabParam = searchParams.get("tab");
+  const initialTimeParam = searchParams.get("t");
+  const jumpTime = initialTimeParam ? parseFloat(initialTimeParam) : undefined;
+
   const [currentMeeting, setCurrentMeeting] = useState(meeting);
-  const [tab, setTab] = useState("summary");
+  const [tab, setTab] = useState(
+    initialTabParam === "transcript" || initialTabParam === "actions" || initialTabParam === "highlights" || initialTabParam === "summary"
+      ? initialTabParam
+      : initialTimeParam
+        ? "transcript"
+        : "summary"
+  );
   const [shareOpen, setShareOpen] = useState(false);
   const [shareTargetHighlight, setShareTargetHighlight] = useState<Highlight | null>(null);
   const [meetingDuration, setMeetingDuration] = useState(meeting.duration);
@@ -1249,6 +1289,15 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
     // Scroll the player into view
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
+
+  useEffect(() => {
+    if (jumpTime !== undefined && !isNaN(jumpTime) && playbackUrl) {
+      const timer = setTimeout(() => {
+        seekTo(jumpTime);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [jumpTime, playbackUrl]);
 
   async function handleStartTranscription() {
     if (isTranscribingLoading || currentMeeting.isDemo) return;
@@ -1467,6 +1516,7 @@ export function MeetingWorkspace({ meeting, playbackUrl, recordingMimeType }: { 
                 <TranscriptPanel
                   meeting={currentMeeting}
                   onSeek={playbackUrl ? seekTo : undefined}
+                  jumpTimeSec={jumpTime}
                   onHighlightTurn={(turn) =>
                     handleOpenCreateHighlight({
                       title: `Quote from ${turn.speaker}`,
