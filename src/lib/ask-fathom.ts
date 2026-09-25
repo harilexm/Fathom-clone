@@ -83,6 +83,18 @@ const STOP_WORDS = new Set([
   "give", "summarize", "summary", "across", "fathom", "ask"
 ]);
 
+const GENERIC_INTENT_WORDS = new Set([
+  "action", "actions", "item", "items", "step", "steps", "next", "key", "point",
+  "points", "theme", "themes", "topic", "topics", "decision", "decisions",
+  "takeaway", "takeaways", "outcome", "outcomes", "note", "notes", "summary",
+  "summaries", "summarize", "overview", "follow", "followup", "follow-up",
+  "draft", "email", "discussed", "discussion", "talk", "talked", "mention",
+  "mentioned", "detail", "details", "update", "updates", "status", "review",
+  "reviewing", "check", "share", "sharing", "video", "videos", "recording",
+  "recordings", "call", "calls", "meeting", "meetings", "recent", "latest",
+  "past", "last", "first", "agenda", "question", "questions"
+]);
+
 function extractKeywords(query: string): string[] {
   return query
     .toLowerCase()
@@ -90,6 +102,35 @@ function extractKeywords(query: string): string[] {
     .split(/\s+/)
     .map((w) => w.trim())
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+interface QuerySignals {
+  keywords: string[];
+  entityKeywords: string[];
+  intentKeywords: string[];
+  recencyCount: number | null;
+}
+
+function extractQuerySignals(query: string): QuerySignals {
+  const cleanTokens = extractKeywords(query);
+
+  const entityKeywords: string[] = [];
+  const intentKeywords: string[] = [];
+
+  for (const token of cleanTokens) {
+    if (GENERIC_INTENT_WORDS.has(token)) {
+      intentKeywords.push(token);
+    } else {
+      entityKeywords.push(token);
+    }
+  }
+
+  return {
+    keywords: cleanTokens,
+    entityKeywords,
+    intentKeywords,
+    recencyCount: detectRecencyCount(query),
+  };
 }
 
 function detectRecencyCount(query: string): number | null {
@@ -628,9 +669,9 @@ async function askMyCallsScope({
     };
   }
 
-  // 2. Extract search signals
-  const keywords = extractKeywords(question);
-  const recencyCount = detectRecencyCount(question);
+  // 2. Extract search signals (entity vs generic intent vs recency)
+  const signals = extractQuerySignals(question);
+  const { entityKeywords, intentKeywords, recencyCount } = signals;
   const meetingIds = dbMeetings.map((m) => m.id);
 
   // 3. Fetch summary versions, action items, and highlights for candidate processed meetings
@@ -654,7 +695,8 @@ async function askMyCallsScope({
   const allHighlights = hlRes.data || [];
 
   // 4. Targeted transcript search: search only for matching transcript segments
-  // Instead of fetching all transcripts across all meetings, we search specifically for relevant turns!
+  // Search priority: entity keywords first, then intent keywords
+  const searchTerms = entityKeywords.length > 0 ? entityKeywords : intentKeywords;
   let matchingSegments: Array<{
     meeting_id: string;
     speaker: string;
@@ -663,8 +705,8 @@ async function askMyCallsScope({
     sequence: number;
   }> = [];
 
-  if (keywords.length > 0) {
-    const orFilters = keywords
+  if (searchTerms.length > 0) {
+    const orFilters = searchTerms
       .slice(0, 3)
       .map((k) => `text.ilike.%${k}%`)
       .join(",");
@@ -681,66 +723,118 @@ async function askMyCallsScope({
     }
   }
 
-  // 5. Score meetings to rank relevance
-  const meetingScores = new Map<string, number>();
+  // 5. Score meetings with strong entity prioritization
+  const meetingEntityScores = new Map<string, number>();
+  const meetingGeneralScores = new Map<string, number>();
 
   dbMeetings.forEach((m, idx) => {
-    let score = 0;
-    // Slight recency bias (index 0 is most recent)
-    score += Math.max(0, 20 - idx * 2);
+    let entityScore = 0;
+    let generalScore = 0;
 
     const titleLower = (m.title || "").toLowerCase();
     const participantsLower = (Array.isArray(m.participants) ? m.participants.join(" ") : "").toLowerCase();
 
-    for (const kw of keywords) {
-      if (titleLower.includes(kw)) score += 30;
-      if (participantsLower.includes(kw)) score += 20;
+    // Check entity matches (names, companies, distinct words)
+    for (const kw of entityKeywords) {
+      if (titleLower.includes(kw)) entityScore += 100;
+      if (participantsLower.includes(kw)) entityScore += 60;
     }
 
     const mSummaries = allSummaries.filter((s) => s.meeting_id === m.id);
     for (const s of mSummaries) {
       const text = ((s.summary || "") + " " + (Array.isArray(s.overview) ? s.overview.join(" ") : "")).toLowerCase();
-      for (const kw of keywords) {
-        if (text.includes(kw)) score += 15;
+      for (const kw of entityKeywords) {
+        if (text.includes(kw)) entityScore += 25;
+      }
+      for (const kw of intentKeywords) {
+        if (text.includes(kw)) generalScore += 10;
       }
     }
 
     const mActions = allActions.filter((a) => a.meeting_id === m.id);
     for (const a of mActions) {
       const text = ((a.task || a.text || "") + " " + (a.owner || "")).toLowerCase();
-      for (const kw of keywords) {
-        if (text.includes(kw)) score += 15;
+      for (const kw of entityKeywords) {
+        if (text.includes(kw)) entityScore += 25;
+      }
+      for (const kw of intentKeywords) {
+        if (text.includes(kw)) generalScore += 10;
       }
     }
 
     const mHighlights = allHighlights.filter((h) => h.meeting_id === m.id);
     for (const h of mHighlights) {
       const text = ((h.title || "") + " " + (h.text || "")).toLowerCase();
-      for (const kw of keywords) {
-        if (text.includes(kw)) score += 12;
+      for (const kw of entityKeywords) {
+        if (text.includes(kw)) entityScore += 20;
+      }
+      for (const kw of intentKeywords) {
+        if (text.includes(kw)) generalScore += 8;
       }
     }
 
     const segMatches = matchingSegments.filter((s) => s.meeting_id === m.id).length;
-    score += segMatches * 15;
-
-    if (recencyCount && idx < recencyCount) {
-      score += 100;
+    if (entityKeywords.length > 0) {
+      entityScore += segMatches * 20;
+    } else {
+      generalScore += segMatches * 10;
     }
 
-    meetingScores.set(m.id, score);
+    // Recency factor: primary for generic recency queries, mild tiebreaker otherwise
+    if (recencyCount && idx < recencyCount) {
+      generalScore += 100;
+    } else {
+      generalScore += Math.max(0, 20 - idx * 2);
+    }
+
+    meetingEntityScores.set(m.id, entityScore);
+    meetingGeneralScores.set(m.id, generalScore);
   });
 
-  const rankedMeetings = [...dbMeetings].sort((a, b) => {
-    const scoreA = meetingScores.get(a.id) || 0;
-    const scoreB = meetingScores.get(b.id) || 0;
-    return scoreB - scoreA;
-  });
+  // 6. Candidate Filtering
+  let candidateMeetings = [...dbMeetings];
 
-  const maxMeetingsToInclude = recencyCount ? Math.min(recencyCount, rankedMeetings.length) : Math.min(4, rankedMeetings.length);
-  const selectedMeetings = rankedMeetings.slice(0, maxMeetingsToInclude);
+  if (entityKeywords.length > 0) {
+    const maxEntityScore = Math.max(...dbMeetings.map((m) => meetingEntityScores.get(m.id) || 0));
 
-  // 6. Build focused cross-meeting context
+    if (maxEntityScore === 0) {
+      // User asked about a specific entity/topic (e.g. "Acme"), but NO meetings match it!
+      // Do NOT contaminate with unrelated meetings!
+      const entityTerms = entityKeywords.map((k) => `**"${k}"**`).join(" or ");
+      const notice = `No meetings or calls matching ${entityTerms} were found in your processed calls library. Please verify the name or select a specific meeting from your library.`;
+      if (onChunk) onChunk(notice);
+      return {
+        answer: notice,
+        scope: "my-calls",
+        relevantMeetingCount: 0,
+        sources: [],
+        provider: "grounded-notice",
+      };
+    }
+
+    // Only include meetings that actually matched the entity!
+    candidateMeetings = candidateMeetings.filter((m) => (meetingEntityScores.get(m.id) || 0) > 0);
+    // Sort strictly by entity score, using general/recency score as tiebreaker
+    candidateMeetings.sort((a, b) => {
+      const eA = meetingEntityScores.get(a.id) || 0;
+      const eB = meetingEntityScores.get(b.id) || 0;
+      if (eB !== eA) return eB - eA;
+      return (meetingGeneralScores.get(b.id) || 0) - (meetingGeneralScores.get(a.id) || 0);
+    });
+  } else {
+    // Broad/intent question: sort by general score (which includes recency & intent keywords)
+    candidateMeetings.sort((a, b) => {
+      return (meetingGeneralScores.get(b.id) || 0) - (meetingGeneralScores.get(a.id) || 0);
+    });
+  }
+
+  const maxMeetingsToInclude = recencyCount
+    ? Math.min(recencyCount, candidateMeetings.length)
+    : Math.min(4, candidateMeetings.length);
+
+  const selectedMeetings = candidateMeetings.slice(0, maxMeetingsToInclude);
+
+  // 7. Build focused cross-meeting context
   // NOTE: Retrieve only the most relevant context, never every full transcript!
   const sources: AskSourceReference[] = [];
   const meetingContextBlocks: string[] = [];
@@ -817,10 +911,11 @@ ${transcriptSnippets.length > 0 ? transcriptSnippets.join("\n") : "(No specific 
 Strict Grounding Rules:
 1. Base your answer strictly on the provided relevant meeting summaries, decisions, action items, and transcript excerpts.
 2. Only reference meetings present in the provided context.
-3. Attribute your findings to the specific call title(s) and dates (e.g. "In 'Every Zoom Meeting' (Sep 24)...").
+3. Attribute your findings to the specific call title(s) and dates (e.g. "In '[Call Title]' ([Date])...").
 4. If asked to summarize multiple calls, provide a clear structured breakdown or cross-call comparison as requested.
 5. If the user's question asks for something not mentioned in any of their processed calls, clearly state that it was not found in their calls rather than guessing.
-6. Provide concise, professional, well-formatted answers using GitHub-flavored markdown.`;
+6. Provide concise, professional, well-formatted answers using GitHub-flavored markdown.
+7. Anti-Contamination Rule: NEVER attribute discussions, action items, or participants from one meeting to a different meeting, company, or participant. If the user asked about a specific company, person, or call that is not present in the provided context, explicitly state that no matching information was found rather than substituting an unrelated meeting.`;
 
   const userPrompt = `Retrieved Relevant Calls Context:
 ${meetingContextBlocks.join("\n\n---\n\n")}

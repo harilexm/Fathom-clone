@@ -50,7 +50,7 @@ interface ProcessedMeetingOption {
 
 const libraryPrompts = [
   { label: "Summarize my last 3 customer calls", icon: FileText, color: "text-[#b274ff]" },
-  { label: "What are key next steps from Acme's calls?", icon: UsersRound, color: "text-[#368dff]" },
+  { label: "What are key next steps from recent calls?", icon: UsersRound, color: "text-[#368dff]" },
   { label: "Show recurring themes across my calls", icon: ChartNoAxesColumnIncreasing, color: "text-[#36d2a0]" },
   { label: "Draft a follow-up email from recent calls", icon: Lightbulb, color: "text-[#ffab40]" },
 ];
