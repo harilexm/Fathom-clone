@@ -15,6 +15,7 @@ export type AccountDetails = {
 };
 
 const links = [
+  { href: "/settings", label: "Settings" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faqs", label: "FAQs" },
   { href: "/privacy-policy", label: "Privacy Policy" },
@@ -60,7 +61,7 @@ export function AccountMenu({ account }: { account: AccountDetails }) {
     <div id="account-menu" hidden={!open} className="absolute right-0 top-full z-50 mt-3 w-[min(288px,calc(100vw-24px))] rounded-lg border border-[#253345] bg-[#101824] py-2 text-[13px] text-[#c0cce0] shadow-[0_12px_32px_rgba(0,0,0,.45)]">
       <div className="border-b border-[#253345] px-4 pb-3 pt-2">
         <p className="break-all font-medium text-[#f3f6fc]">{email}</p>
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Current plan</span><span className="font-medium text-[#e8eef8]">{plan}</span></div>
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Current access</span><span className="font-medium text-[#e8eef8]">{trialActive ? "Pro trial" : plan}</span></div>
         <div className="mt-1 flex items-center justify-between gap-3 text-xs"><span className="text-[#8e9bac]">Pro Trial</span><span className={trialActive ? "font-medium text-[#7badff]" : "text-[#8e9bac]"}>{trialActive ? "Active" : "Ended"}</span></div>
         <div className="mt-1 flex items-center justify-between gap-3 text-xs">
           <span className="text-[#8e9bac]">Credit balance</span>
@@ -71,7 +72,7 @@ export function AccountMenu({ account }: { account: AccountDetails }) {
         </div>
       </div>
       <nav aria-label="Account links" className="py-1">
-        {links.map(({ href, label }) => <Link key={href} href={href} onClick={() => setOpen(false)} className="block px-4 py-2 hover:bg-[#1a2433] hover:text-white focus-visible:bg-[#1a2433] focus-visible:text-white">{label}</Link>)}
+        {links.map(({ href, label }) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} onClick={() => setOpen(false)} className="block px-4 py-2 hover:bg-[#1a2433] hover:text-white focus-visible:bg-[#1a2433] focus-visible:text-white">{label}</Link>)}
       </nav>
       <form action={signOut} className="border-t border-[#253345] pt-1">
         <button type="submit" className="block w-full px-4 py-2 text-left hover:bg-[#1a2433] hover:text-white focus-visible:bg-[#1a2433] focus-visible:text-white">Logout</button>
