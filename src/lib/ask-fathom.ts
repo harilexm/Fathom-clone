@@ -14,6 +14,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { findMeeting, type Meeting } from "@/lib/sample-data";
 import { getOpenAiApiKey, getOpenAiAnalysisModel } from "@/lib/openai";
 import { getAnthropicApiKey, getAnthropicChatModel, isAnthropicConfigured } from "@/lib/anthropic";
@@ -43,6 +44,7 @@ export interface AskFathomParams {
   user: { id: string; email?: string | null };
   supabase: SupabaseClient;
   onChunk?: (text: string) => void;
+  simulateOpenAiFailure?: boolean;
 }
 
 export interface AskFathomResult {
@@ -123,11 +125,13 @@ async function streamLlmWithFallback({
   userPrompt,
   history = [],
   onChunk,
+  simulateOpenAiFailure = false,
 }: {
   systemPrompt: string;
   userPrompt: string;
   history?: AskMessage[];
   onChunk?: (text: string) => void;
+  simulateOpenAiFailure?: boolean;
 }): Promise<{ fullText: string; provider: "openai" | "anthropic" }> {
   let openAiError: Error | null = null;
   let tokensYielded = 0;
@@ -135,6 +139,9 @@ async function streamLlmWithFallback({
 
   // 1. Attempt OpenAI Primary
   try {
+    if (simulateOpenAiFailure) {
+      throw new Error("Simulated OpenAI failure for fallback testing");
+    }
     const apiKey = getOpenAiApiKey();
     const model = getOpenAiAnalysisModel();
 
@@ -306,6 +313,7 @@ async function askMeetingScope({
   user,
   supabase,
   onChunk,
+  simulateOpenAiFailure,
 }: AskFathomParams): Promise<AskFathomResult> {
   if (!meetingId || !meetingId.trim()) {
     throw new Error("A specific meeting ID is required for meeting scope");
@@ -316,11 +324,13 @@ async function askMeetingScope({
   // 1. Check sample demo fixture meeting
   const sample = findMeeting(cleanId);
   if (sample) {
-    return handleSampleMeetingScope(sample, question, history, onChunk);
+    return handleSampleMeetingScope(sample, question, history, onChunk, simulateOpenAiFailure);
   }
 
-  // 2. Fetch meeting from Supabase with user ownership verification
-  const { data: meeting, error: mErr } = await supabase
+  // 2. Fetch meeting with user ownership verification
+  // Query via admin client to detect existence across users and distinguish 403 Forbidden vs 404 Not Found
+  const admin = createAdminClient();
+  const { data: meeting, error: mErr } = await admin
     .from("meetings")
     .select("id, user_id, title, status, duration, duration_seconds, meeting_time, created_at, participants")
     .eq("id", cleanId)
@@ -456,6 +466,7 @@ ${question}`;
     userPrompt,
     history,
     onChunk,
+    simulateOpenAiFailure,
   });
 
   const sources: AskSourceReference[] = [];
@@ -502,7 +513,8 @@ async function handleSampleMeetingScope(
   sample: Meeting,
   question: string,
   history: AskMessage[] = [],
-  onChunk?: (text: string) => void
+  onChunk?: (text: string) => void,
+  simulateOpenAiFailure?: boolean
 ): Promise<AskFathomResult> {
   const summaryText = sample.summary || "";
   const overviewPoints = sample.overview || [];
@@ -552,6 +564,7 @@ ${question}`;
     userPrompt,
     history,
     onChunk,
+    simulateOpenAiFailure,
   });
 
   return {
@@ -589,6 +602,7 @@ async function askMyCallsScope({
   user,
   supabase,
   onChunk,
+  simulateOpenAiFailure,
 }: AskFathomParams): Promise<AskFathomResult> {
   // 1. Fetch only the authenticated user's processed meetings
   const { data: dbMeetings, error: mErr } = await supabase
@@ -819,6 +833,7 @@ ${question}`;
     userPrompt,
     history,
     onChunk,
+    simulateOpenAiFailure,
   });
 
   return {

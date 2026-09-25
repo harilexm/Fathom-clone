@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const simulateOpenAiFailure = request.headers.get("x-test-simulate-openai-failure") === "true";
+
     // If client requested non-streaming mode
     if (stream === false) {
       const result = await askFathom({
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
         history: Array.isArray(history) ? history : [],
         user: { id: user.id, email: user.email },
         supabase,
+        simulateOpenAiFailure,
       });
 
       return NextResponse.json({
@@ -123,6 +126,7 @@ export async function POST(request: NextRequest) {
           history: Array.isArray(history) ? history : [],
           user: { id: user.id, email: user.email },
           supabase,
+          simulateOpenAiFailure,
           onChunk: (chunkText) => {
             const chunkEvent = `event: chunk\ndata: ${JSON.stringify({ text: chunkText })}\n\n`;
             writer.write(encoder.encode(chunkEvent)).catch(() => {});
