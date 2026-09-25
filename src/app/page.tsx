@@ -1,18 +1,6 @@
 import Link from "next/link";
 import { FathomLogo } from "@/components/fathom-logo";
-import {
-  ArrowRight,
-  Sparkles,
-  Shield,
-  Clock,
-  CheckCircle2,
-  FileText,
-  Search,
-  Bot,
-  Play,
-  Share2,
-  Lock,
-} from "lucide-react";
+import { ArrowRight, Check, Play, Search, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -22,18 +10,15 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <div className="min-h-screen bg-[#06080d] text-[#f1f5f9] flex flex-col selection:bg-[#2563eb]/30 selection:text-[#93c5fd]">
-      {/* Background ambient lighting */}
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_80%_45%_at_50%_-10%,#0d1624_0%,#06080d_70%)] opacity-80" />
-
-      {/* Navigation Header */}
-      <header className="sticky top-0 z-40 border-b border-[#131b26] bg-[#06080d]/90 backdrop-blur-md">
+    <div className="min-h-screen bg-[#06080d] text-[#f1f5f9] flex flex-col antialiased">
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-40 border-b border-[#131b26] bg-[#06080d]/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-8">
             <FathomLogo href="/" size="sm" />
-            <nav className="hidden md:flex items-center gap-5 text-xs text-muted">
-              <a href="#features" className="hover:text-[#f1f5f9] transition">Features</a>
-              <a href="#workspace" className="hover:text-[#f1f5f9] transition">Product</a>
+            <nav className="hidden md:flex items-center gap-6 text-xs text-[#8da3be]">
+              <a href="#how-it-works" className="hover:text-[#f1f5f9] transition">Workflow</a>
+              <a href="#features" className="hover:text-[#f1f5f9] transition">Capabilities</a>
               <a href="#security" className="hover:text-[#f1f5f9] transition">Security</a>
               <Link href="/privacy" className="hover:text-[#f1f5f9] transition">Privacy</Link>
               <Link href="/terms" className="hover:text-[#f1f5f9] transition">Terms</Link>
@@ -44,7 +29,7 @@ export default async function HomePage() {
             {user ? (
               <Link
                 href="/my-calls"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-hover shadow-sm"
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-brand-hover shadow-sm"
               >
                 Go to My Calls <ArrowRight size={13} />
               </Link>
@@ -52,15 +37,15 @@ export default async function HomePage() {
               <>
                 <Link
                   href="/login"
-                  className="rounded-lg border border-[#151e2b] bg-[#080c14] px-3.5 py-1.5 text-xs font-semibold text-[#cbd5e1] hover:border-[#1e2a3c] hover:text-[#f1f5f9] transition"
+                  className="rounded-md border border-[#151e2b] bg-[#080c14] px-3.5 py-1.5 text-xs font-medium text-[#cbd5e1] hover:border-[#1e2a3c] hover:text-[#f1f5f9] transition"
                 >
-                  Sign In
+                  Sign in
                 </Link>
                 <Link
                   href="/login"
-                  className="rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-hover shadow-sm"
+                  className="rounded-md bg-brand px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-brand-hover shadow-sm"
                 >
-                  Start Free
+                  Get started
                 </Link>
               </>
             )}
@@ -68,271 +53,294 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="relative z-10 flex-1">
-        <section className="mx-auto max-w-5xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 text-center space-y-6">
-          {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#1d3557] bg-[#0c182b] px-3 py-1 text-xs font-medium text-[#60a5fa]">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand animate-pulse" />
-            <span>AI Meeting Intelligence · Never take notes again</span>
-          </div>
-
-          {/* Main Headline */}
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#f1f5f9] sm:text-6xl sm:leading-[1.15]">
-            Focus on the conversation,<br className="hidden sm:inline" />
-            <span className="text-[#60a5fa]"> not the notes.</span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="mx-auto max-w-2xl text-sm sm:text-base leading-relaxed text-[#cbd5e1]">
-            A high-contrast, distraction-free meeting intelligence workspace. Upload recordings or connect Google Calendar for speaker-diarized transcripts, executive notes, and instant contextual search.
+      {/* Main Content */}
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="mx-auto max-w-4xl px-4 pt-20 pb-16 sm:px-6 sm:pt-28 sm:pb-24 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-[#60a5fa] mb-4">
+            Meeting Intelligence Platform
           </p>
 
-          {/* CTA Buttons */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-[#f1f5f9] sm:text-5xl sm:leading-[1.18]">
+            Automated meeting notes and transcripts,<br className="hidden sm:inline" />
+            built for productive teams.
+          </h1>
+
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-[#94a3b8] sm:text-base">
+            Fathom transcribes your recordings with speaker diarization, generates concise executive notes and action items, and lets you query your call history with contextual search.
+          </p>
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand/20 transition hover:bg-brand-hover"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-hover shadow-sm"
             >
-              Start Free with Demo Guest <ArrowRight size={15} />
+              Start with Demo Guest <ArrowRight size={13} />
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-[#151e2b] bg-[#080c14] px-5 py-3 text-sm font-semibold text-[#cbd5e1] hover:border-[#1e2a3c] hover:bg-[#0d131d] hover:text-[#f1f5f9] transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-[#151e2b] bg-[#080c14] px-5 py-2.5 text-xs font-semibold text-[#cbd5e1] hover:border-[#1e2a3c] hover:bg-[#0d131d] hover:text-[#f1f5f9] transition"
             >
-              Sign In with Google
+              Sign in with Email or Google
             </Link>
           </div>
 
-          {/* Trust points */}
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-[#64748b]">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-[#34d399]" /> No credit card required
+              <Check size={13} className="text-[#34d399]" /> 50 minutes included
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-[#34d399]" /> 50 starter minutes included
+              <Check size={13} className="text-[#34d399]" /> No credit card required
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-[#34d399]" /> Encrypted private R2 storage
+              <Check size={13} className="text-[#34d399]" /> Private encrypted storage
             </span>
           </div>
+        </section>
 
-          {/* Workspace Product Mockup */}
-          <div id="workspace" className="pt-12">
-            <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-3 sm:p-5 shadow-2xl">
-              {/* Fake Workspace Window Header */}
-              <div className="flex items-center justify-between border-b border-[#131b26] pb-3 mb-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#1e2a3a]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#1e2a3a]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#1e2a3a]" />
-                  <span className="ml-2 font-semibold text-[#f1f5f9] hidden sm:inline">
-                    Q3 Product Roadmap Review · 18:24
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-muted">
-                  <span className="rounded bg-[#0c182b] border border-[#1d3557] px-2 py-0.5 text-[10px] font-bold text-[#60a5fa] uppercase">
-                    Processed
-                  </span>
-                  <span className="hidden sm:inline">4 participants</span>
-                </div>
+        {/* Product Workspace Preview */}
+        <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6">
+          <div className="rounded-xl border border-[#131b26] bg-[#070a10] shadow-2xl overflow-hidden">
+            {/* Window title bar */}
+            <div className="flex items-center justify-between border-b border-[#131b26] bg-[#05070c] px-4 py-3 text-xs text-[#64748b]">
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-[#f1f5f9]">My Calls</span>
+                <span>/</span>
+                <span className="text-[#cbd5e1]">Weekly Sprint &amp; Architecture Sync</span>
               </div>
+              <div className="flex items-center gap-3 text-[11px]">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="text-[#cbd5e1]">Processed · 24 min</span>
+              </div>
+            </div>
 
-              {/* Grid: Player Preview & Intelligence Preview */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 text-left">
-                {/* Left: Player Mockup */}
-                <div className="lg:col-span-7 rounded-lg border border-[#131b26] bg-[#06080d] p-4 flex flex-col justify-between min-h-[260px]">
-                  <div className="flex items-center justify-between text-xs text-muted">
+            {/* Split Interface Mock */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[#131b26]">
+              {/* Left Column: Player & Transcript Preview */}
+              <div className="lg:col-span-7 p-5 space-y-4">
+                <div className="rounded-lg border border-[#131b26] bg-[#06080d] p-4">
+                  <div className="flex items-center justify-between text-xs text-[#64748b] mb-3">
                     <span className="font-semibold text-[#f1f5f9]">Speaker: Danny Shavit</span>
-                    <span className="font-mono text-[11px]">04:12 / 18:24</span>
+                    <span className="font-mono text-[11px]">04:12 / 24:18</span>
                   </div>
-
-                  <div className="my-auto flex flex-col items-center justify-center py-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0c182b] border border-[#1d3557] text-[#60a5fa]">
-                      <Play size={22} className="ml-0.5" />
+                  <div className="aspect-video w-full rounded bg-[#030508] border border-[#0e141f] flex flex-col items-center justify-center text-center p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c182b] border border-[#1d3557] text-[#60a5fa]">
+                      <Play size={16} className="ml-0.5" />
                     </div>
-                    <p className="mt-3 text-xs text-[#cbd5e1] font-medium">Click to seek exact moment</p>
-                  </div>
-
-                  {/* Waveform track */}
-                  <div className="space-y-1.5">
-                    <div className="h-1.5 w-full rounded-full bg-[#151e2b] overflow-hidden">
-                      <div className="h-full w-1/3 bg-brand rounded-full" />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-muted font-mono">
-                      <span>00:00</span>
-                      <span>18:24</span>
-                    </div>
+                    <p className="mt-2 text-[11px] text-[#64748b]">Click timestamp to jump to audio moment</p>
                   </div>
                 </div>
 
-                {/* Right: Notes & Ask Fathom Mockup */}
-                <div className="lg:col-span-5 rounded-lg border border-[#131b26] bg-[#080c14] p-4 space-y-4">
-                  {/* Tabs */}
-                  <div className="flex items-center gap-2 border-b border-[#131b26] pb-2 text-[11px] font-semibold">
-                    <span className="text-brand border-b border-brand pb-2">Summary</span>
-                    <span className="text-muted pb-2">Action Items (3)</span>
-                    <span className="text-muted pb-2">Highlights (2)</span>
-                  </div>
-
-                  {/* Summary Snippet */}
-                  <div className="space-y-1.5 text-xs">
-                    <h4 className="font-semibold text-[#f1f5f9]">Key Discussion Takeaways</h4>
-                    <p className="text-[#cbd5e1] leading-relaxed text-[11.5px]">
-                      The team confirmed final timelines for the automated speech diarization pipeline. Cloudflare R2 signed playback verified under 200ms latency.
-                    </p>
-                  </div>
-
-                  {/* Ask Fathom Query Box */}
-                  <div className="rounded-md border border-[#151e2b] bg-[#070a10] p-2.5 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-brand">
-                      <Bot size={11} /> Ask Fathom
+                {/* Transcript Segment Preview */}
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex items-start gap-2.5">
+                    <span className="rounded bg-[#0c182b] border border-[#1d3557] px-1.5 py-0.5 font-mono text-[10px] text-[#60a5fa]">04:12</span>
+                    <div>
+                      <span className="font-semibold text-[#f1f5f9]">Danny Shavit:</span>
+                      <p className="text-[#94a3b8] mt-0.5 leading-relaxed">
+                        We reviewed the audio processing benchmark. Soniox diarization output is returning under 45 seconds for a 20-minute call.
+                      </p>
                     </div>
-                    <p className="text-[11px] text-[#f1f5f9] font-medium">
-                      &ldquo;What were the agreed next steps for Danny?&rdquo;
-                    </p>
-                    <p className="text-[11px] text-[#94a3b8] leading-normal border-t border-[#131b26] pt-1.5">
-                      Danny will ship the highlight trim player and verify signed token URL expiry by end of week.
-                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="rounded bg-[#0c182b] border border-[#1d3557] px-1.5 py-0.5 font-mono text-[10px] text-[#60a5fa]">04:48</span>
+                    <div>
+                      <span className="font-semibold text-[#f1f5f9]">Umer Abdullah:</span>
+                      <p className="text-[#94a3b8] mt-0.5 leading-relaxed">
+                        Agreed. Let&apos;s finalize the signed URL playback logic so shared links remain time-scoped and cryptographically safe.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Feature Grid */}
-        <section id="features" className="border-t border-[#131b26] bg-[#070a10]/50 py-16 sm:py-20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="text-center space-y-2 mb-12">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Capabilities</span>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#f1f5f9]">
-                Engineered for Executive Productivity
-              </h2>
-              <p className="text-xs sm:text-sm text-muted max-w-lg mx-auto">
-                No bloated features or AI hallucination slop. Clean, reliable intelligence for every meeting you record.
-              </p>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-3">
-              {/* Feature 1 */}
-              <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-6 space-y-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0c182b] text-brand border border-[#1d3557]">
-                  <FileText size={18} />
+              {/* Right Column: Structured Notes Preview */}
+              <div className="lg:col-span-5 p-5 space-y-5 bg-[#070a10]">
+                {/* Notes tab row */}
+                <div className="flex items-center gap-4 border-b border-[#131b26] pb-2 text-xs font-semibold">
+                  <span className="text-brand border-b border-brand pb-2">Summary</span>
+                  <span className="text-[#64748b] pb-2">Action Items (3)</span>
+                  <span className="text-[#64748b] pb-2">Highlights (2)</span>
                 </div>
-                <h3 className="text-sm font-bold text-[#f1f5f9]">Diarized Speech Transcripts</h3>
-                <p className="text-xs leading-relaxed text-[#cbd5e1]">
-                  High-accuracy speech-to-text with automatic speaker separation. Click any transcript phrase to jump video playback directly to that timestamp.
-                </p>
-              </div>
 
-              {/* Feature 2 */}
-              <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-6 space-y-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0c182b] text-brand border border-[#1d3557]">
-                  <Sparkles size={18} />
-                </div>
-                <h3 className="text-sm font-bold text-[#f1f5f9]">Structured Notes &amp; Actions</h3>
-                <p className="text-xs leading-relaxed text-[#cbd5e1]">
-                  Executive summaries, bulleted discussion overviews, auto highlights, and assigned action item lists generated automatically after processing completes.
-                </p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-6 space-y-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0c182b] text-brand border border-[#1d3557]">
-                  <Search size={18} />
-                </div>
-                <h3 className="text-sm font-bold text-[#f1f5f9]">Global Library Search</h3>
-                <p className="text-xs leading-relaxed text-[#cbd5e1]">
-                  Search across titles, participants, transcripts, and notes. Ask Fathom cross-examines multiple calls to surface answers with linked citations.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Security & Governance Section */}
-        <section id="security" className="border-t border-[#131b26] py-16 sm:py-20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-8 sm:p-10">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-                <div className="md:col-span-7 space-y-4">
-                  <div className="inline-flex items-center gap-1.5 rounded-md border border-[#1d3557] bg-[#0c182b] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#60a5fa]">
-                    <Shield size={11} /> Enterprise-Grade Trust
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-[#f1f5f9]">
-                    Strict Data Privacy by Default
-                  </h3>
-                  <p className="text-xs sm:text-sm leading-relaxed text-[#cbd5e1]">
-                    Recordings are stored in private Cloudflare R2 bucket storage with time-limited signed URL playback. Database access is protected by Supabase Row-Level Security. Unshared meetings remain strictly inaccessible to anyone outside your authenticated workspace.
+                {/* Executive Summary */}
+                <div className="space-y-1.5 text-xs">
+                  <h4 className="font-semibold text-[#f1f5f9]">Executive Summary</h4>
+                  <p className="text-[#94a3b8] leading-relaxed text-[11.5px]">
+                    The team aligned on the speech pipeline deployment. Diarization latency is verified, and signed share URLs are scoped strictly to the authenticated meeting owner.
                   </p>
-                  <div className="flex flex-wrap items-center gap-4 text-xs font-semibold pt-2">
-                    <Link href="/privacy" className="text-brand hover:underline">
-                      Read Privacy Policy →
-                    </Link>
-                    <Link href="/terms" className="text-muted hover:text-[#f1f5f9]">
-                      View Terms of Service →
-                    </Link>
+                </div>
+
+                {/* Action Items */}
+                <div className="space-y-2 text-xs border-t border-[#131b26] pt-4">
+                  <h4 className="font-semibold text-[#f1f5f9]">Action Items</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-[11.5px] text-[#cbd5e1]">
+                      <span className="h-3.5 w-3.5 rounded border border-[#25394f] bg-[#080c14] flex items-center justify-center text-[9px] text-[#34d399]">✓</span>
+                      <span>Validate Cloudflare R2 presigned download latency</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11.5px] text-[#cbd5e1]">
+                      <span className="h-3.5 w-3.5 rounded border border-[#25394f] bg-[#080c14]" />
+                      <span>Implement 17-second highlight clip bounded player</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="md:col-span-5 grid grid-cols-1 gap-3 text-xs">
-                  <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-3.5 space-y-1">
-                    <span className="font-semibold text-[#f1f5f9] flex items-center gap-1.5">
-                      <Lock size={13} className="text-brand" /> Private R2 Storage
-                    </span>
-                    <p className="text-muted text-[11px]">No public media URLs. Scoped signed tokens only.</p>
-                  </div>
-                  <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-3.5 space-y-1">
-                    <span className="font-semibold text-[#f1f5f9] flex items-center gap-1.5">
-                      <Share2 size={13} className="text-brand" /> Revocable Public Links
-                    </span>
-                    <p className="text-muted text-[11px]">Share full calls or trimmed 17s highlight clips safely.</p>
-                  </div>
-                  <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-3.5 space-y-1">
-                    <span className="font-semibold text-[#f1f5f9] flex items-center gap-1.5">
-                      <Clock size={13} className="text-brand" /> Zero Waste Credits
-                    </span>
-                    <p className="text-muted text-[11px]">Credits deduct only after successful media processing.</p>
-                  </div>
+                {/* Ask Fathom Query Box */}
+                <div className="rounded-lg border border-[#151e2b] bg-[#080c14] p-3 text-xs space-y-1.5">
+                  <span className="font-semibold text-[#f1f5f9] block">Ask Fathom</span>
+                  <p className="text-[11px] text-[#60a5fa]">
+                    &ldquo;What was the decision on share link security?&rdquo;
+                  </p>
+                  <p className="text-[11px] text-[#94a3b8] leading-relaxed border-t border-[#131b26] pt-1.5">
+                    Share links use high-entropy random tokens that can be revoked immediately in Settings.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Bottom CTA Banner */}
-        <section className="border-t border-[#131b26] bg-[#05070c] py-14 text-center">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 space-y-4">
-            <h3 className="text-2xl font-bold tracking-tight text-[#f1f5f9]">
-              Ready to automate your meeting notes?
-            </h3>
-            <p className="text-xs sm:text-sm text-muted max-w-md mx-auto">
-              Get started in seconds with a private Demo Guest session. No setup required.
+        {/* How It Works (Workflow) */}
+        <section id="how-it-works" className="border-t border-[#131b26] py-16 sm:py-20 bg-[#05070c]">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="mb-10 text-center space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#60a5fa]">Workflow</p>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#f1f5f9]">
+                How Fathom works
+              </h2>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-3 text-left">
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-5 space-y-2">
+                <span className="font-mono text-xs font-bold text-brand">01</span>
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Upload or Connect</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Upload video or audio recordings (MP4, MP3, M4A, WebM) directly, or connect your Google Calendar to synchronize scheduled calls.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-5 space-y-2">
+                <span className="font-mono text-xs font-bold text-brand">02</span>
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Process &amp; Transcribe</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Soniox speech recognition transcribes the conversation with speaker identification. AI models extract summaries, key topics, and action items.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-5 space-y-2">
+                <span className="font-mono text-xs font-bold text-brand">03</span>
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Search &amp; Share</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Find exact spoken phrases with keyword jumping, query your library using Ask Fathom, or generate secure share links for highlights.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Capabilities Section */}
+        <section id="features" className="border-t border-[#131b26] py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="mb-10 text-center space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#60a5fa]">Capabilities</p>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#f1f5f9]">
+                Core functionality
+              </h2>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-6 space-y-2">
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Accurate Speaker Diarization</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Every spoken turn is mapped to individual participants with exact timestamps. Clicking any line in the transcript seeks playback directly to that millisecond.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-6 space-y-2">
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Executive Summaries &amp; Action Items</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Get high-level overviews, granular discussion points, and assigned to-do items extracted automatically without having to take manual notes.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-6 space-y-2">
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Global Transcript &amp; Meeting Search</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Search across your entire meeting history by speaker name, keyword, or action item. Instant highlights direct you to exact spoken moments.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#131b26] bg-[#070a10] p-6 space-y-2">
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Trimmed Highlight Sharing</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  Create and share short video clips (e.g. 17 seconds) with external colleagues. Viewers only see the shared excerpt without accessing full recordings.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Security & Data Governance */}
+        <section id="security" className="border-t border-[#131b26] py-16 sm:py-20 bg-[#05070c]">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="rounded-xl border border-[#131b26] bg-[#070a10] p-6 sm:p-8">
+              <div className="space-y-3 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <Shield size={14} className="text-[#60a5fa]" />
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-[#60a5fa]">Security &amp; Privacy</p>
+                </div>
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-[#f1f5f9]">
+                  Strict data isolation and access controls
+                </h2>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  All media is stored in private Cloudflare R2 buckets using signed time-limited URLs. Data access is enforced through Supabase Row-Level Security, ensuring that unshared meetings are completely private to your account.
+                </p>
+                <div className="pt-2 flex items-center gap-4 text-xs">
+                  <Link href="/privacy" className="font-medium text-brand hover:underline">
+                    Privacy Policy →
+                  </Link>
+                  <Link href="/terms" className="font-medium text-[#8da3be] hover:text-[#f1f5f9]">
+                    Terms of Service →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom CTA Block */}
+        <section className="border-t border-[#131b26] py-16 text-center">
+          <div className="mx-auto max-w-xl px-4 sm:px-6 space-y-4">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#f1f5f9]">
+              Start using Fathom
+            </h2>
+            <p className="text-xs text-[#94a3b8]">
+              Test all features instantly with a private Demo Guest session. 50 complimentary minutes included.
             </p>
             <div className="pt-2">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-hover shadow-sm"
+                className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-brand-hover shadow-sm"
               >
-                Launch Fathom Workspace <ArrowRight size={13} />
+                Launch Workspace <ArrowRight size={13} />
               </Link>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Public Footer */}
-      <footer className="border-t border-[#131b26] py-10 text-xs text-muted">
+      {/* Footer */}
+      <footer className="border-t border-[#131b26] py-8 text-xs text-[#64748b]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <FathomLogo href="/" size="sm" />
-            <span>· Private, secure meeting intelligence.</span>
+            <span>· Meeting intelligence workspace</span>
           </div>
           <div className="flex items-center gap-6">
             <Link href="/privacy" className="hover:text-[#f1f5f9] transition">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-[#f1f5f9] transition">Terms of Service</Link>
-            <Link href="/login" className="hover:text-[#f1f5f9] transition">Sign In</Link>
+            <Link href="/login" className="hover:text-[#f1f5f9] transition">Sign in</Link>
           </div>
         </div>
       </footer>
