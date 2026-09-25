@@ -11,7 +11,7 @@
 - Enforce user ownership, plans, and credits server-side.
 - Use Supabase RLS for private data.
 
-## Reliability
+## Reliability & Feature Conventions
 - Retries/webhooks must be idempotent.
 - Never create duplicate meeting results or deduct credits twice.
 - Deduct credits only after successful media processing.
@@ -20,9 +20,12 @@
 - Clearly label anything that is stubbed/demo-only.
 - Strictly separate demo/sample fixtures from authenticated user uploads; real meetings must render genuine pending, processing, or unavailable states, never fallback demo text or sample share links.
 - Ensure media metadata (e.g. video/audio duration) pipelines are resilient and self-healing with multi-layer fallbacks (metadata parsing, container atom probing, transcript timestamps, and client sync).
+- Highlights: Prevent duplicate saves and keep AI-suggested highlights distinct from user-created highlights.
+- Sharing: Generate unique cryptographically secure tokens; unshared/revoked links must reject public access.
+- Global Search: Strictly scope searches server-side to the authenticated user's own meetings across titles, participants, transcripts, summaries, and action items. Transcript matches must return relevant snippets, timestamps, and context-jumping URLs (`?t=...&tab=transcript`).
 
 ## 8x / Git
-- Never ignore, delete, rewrite, or fabricate `.agent-logs/`.
+- Never ever modify, delete, stage, or commit files in `.agent-logs/`.
 - Keep capture evidence intact.
 - Check `git status` before commits.
 - Never commit secrets or generated junk.
